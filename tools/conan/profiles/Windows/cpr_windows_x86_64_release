@@ -1,0 +1,4 @@
+include(cpr_windows_x86_64)
+
+[settings]
+build_type=Release

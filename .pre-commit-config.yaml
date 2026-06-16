@@ -1,0 +1,19 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  - id: check-case-conflict
+  - id: mixed-line-ending
+    args: ['--fix=lf']
+    exclude: '.*\.bat$'
+  - id: check-merge-conflict
+  - id: check-xml
+  - id: check-yaml
+  - id: trailing-whitespace
+    exclude: '.*\.bat$'
+  - id: end-of-file-fixer
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: "v20.1.4"
+  hooks:
+  - id: clang-format
+    types_or: [c++, c, cuda]

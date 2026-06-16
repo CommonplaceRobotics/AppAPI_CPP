@@ -1,0 +1,4 @@
+include(cpr_linux_rpi4_gcc10)
+
+[settings]
+build_type=Debug
