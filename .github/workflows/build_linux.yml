@@ -1,0 +1,188 @@
+# Dieser Workflow
+# - Baut die Tests für x86_64 führt sie aus
+# - Erstellt SBOM wird und prüft sie auf Schwachstellen in den Abhängigkeiten
+# Dazu werden zunächst die Abhängigkeiten gebaut und gecached.
+#
+# Vorbedingung:
+# - Die Conan-Lockdatei (conan.lock) muss existieren.
+
+name: Build and Test for Linux
+
+on:
+  push:
+    branches: [ "main", "v1*", "v2*", "v3*" ]
+  pull_request:
+    branches: [ "main", "v1*", "v2*", "v3*" ]
+
+jobs:
+  # Bereitet die Abhängigkeiten für Linux x86_64 vor.
+  # Dies ist ein separater Job, da dies sehr lange dauern (30-60 Min, falls alles gebaut werden muss) kann und das Ergebnis gecached werden soll, auch wenn das Bauen später fehlschlägt.
+  build_dependencies_pc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - uses: actions/checkout@v6
+
+    # Quick cache check without copying files
+    - name: Check whether cache exists
+      id: cache_test
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-x86_64-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        lookup-only: true
+
+    - name: Restore cached dependencies
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-x86_64-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        restore-keys: |
+          conan-${{ runner.os }}-armv8_32-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+          conan-${{ runner.os }}-
+
+    - name: Install Conan
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      uses: conan-io/setup-conan@v1
+
+    - name: Install Conan profiles
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      run: cp tools/conan/profiles/Linux/* ~/.conan2/profiles
+
+    - name: Build Conan dependencies (PC)
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      run: conan install . --lockfile=conan.lock --lockfile-partial --build=missing --profile=cpr_linux_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']"
+
+    - name: Clear old dependencies
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      run: conan remove --lru=8w "*"
+
+
+  # Build and run tests for Linux x86_64
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build_dependencies_pc
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Restore cached dependencies
+      id: cache
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-x86_64-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        fail-on-cache-miss: true
+
+    - name: Install Conan
+      uses: conan-io/setup-conan@v1
+
+    - name: Configure CMake
+      run: |
+        rm -f CMakePresets.json
+        echo "{\"version\": 4,\"include\":[\"out/conan/Linux/x86_64/Release/generators/CMakePresets.json\"]}" >> CMakePresets.json
+        cmake --preset conan-linux-x86_64-release
+
+    - name: Build Tests (x86_64)
+      run: |
+        cd out/build/Linux/x86_64/Release
+        cmake --build . --target iRCApp_Tests
+
+    - name: Run Tests
+      run: |
+        cd out/build/Linux/x86_64/Release
+        ./iRCApp_Tests
+
+    - name: Export Library
+      uses: actions/upload-artifact@v7
+      with:
+        path: out/build/Linux/x86_64/Release/libiRCApp.a
+        archive: false
+
+
+  # Erstellt die SBOM und führt einen Schwachstellenscan durch
+  sbom_linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: build_dependencies_pc
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Restore cached dependencies
+      id: cache
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-x86_64-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        fail-on-cache-miss: true
+
+    # This generates sbomify.json with lifecycle info
+    - name: Configure CMake
+      run: |
+        rm -f CMakePresets.json
+        echo "{\"version\": 4,\"include\":[\"out/conan/Linux/x86_64/Release/generators/CMakePresets.json\"]}" >> CMakePresets.json
+        cmake --preset conan-linux-x86_64-release
+        mv out/build/Linux/x86_64/Release/sbomify.json .
+
+    # Liest die Core-Version aus CMakeLists.txt
+    - name: Get software version
+      run: |
+        VER=`grep -E -o "VERSION[[:blank:]]+[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+" CMakeLists.txt | sed "s/[^0-9.]*//g"`
+        echo "Software version '$VER' detected"
+        echo "SW_VERSION=$VER" >> $GITHUB_ENV
+
+    - name: Create SBOM
+      uses: sbomify/sbomify-action@master
+      env:
+        LOCK_FILE: conan.lock
+        OUTPUT_FILE: sbom.cdx.json
+        COMPONENT_NAME: RobotControl_Core
+        COMPONENT_VERSION: ${{ env.SW_VERSION }}
+        # Produkt- und Firmeninfo werden aus sbomify.json geladen
+        AUGMENT: true
+        # Metadaten aus Paket-Registry hinzufügen
+        ENRICH: true
+        UPLOAD: false
+
+    - name: Export SBOM
+      uses: actions/upload-artifact@v7
+      with:
+        name: sbom_rpi.cdx.json
+        path: sbom.cdx.json
+        archive: false
+
+    - uses: actions/setup-go@v6
+
+    - name: Install SBOM QA tool
+      run: go install github.com/interlynk-io/sbomqs@latest
+
+    - name: SBOM quality score
+      run: sbomqs score sbom.cdx.json
+
+    # Checks compliance with the latest version of BSI TR-03183-2
+    - name: Check CRA compliance
+      run: sbomqs compliance --bsi --color sbom.cdx.json
+
+    - name: List component licenses
+      run: sbomqs list --feature comp_with_declared_license --show sbom.cdx.json
+
+    # TODO: Nicht CRA-konforme Felder füllen
+
+    # Security Audit
+    - name: Scan for vulnerabilities
+      uses: anchore/scan-action@v7
+      with:
+        sbom: sbom.cdx.json
+        cache-db: true

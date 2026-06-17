@@ -1,0 +1,110 @@
+# Dieser Workflow
+# - Baut die Tests für Windows führt sie aus
+# - Erstellt SBOM wird und prüft sie auf Schwachstellen in den Abhängigkeiten
+# Dazu werden zunächst die Abhängigkeiten gebaut und gecached.
+#
+# Vorbedingung:
+# - Die Conan-Lockdatei (conan.lock) muss existieren.
+
+name: Build and Test for Windows
+
+on:
+  push:
+    branches: [ "main", "v1*", "v2*", "v3*" ]
+  pull_request:
+    branches: [ "main", "v1*", "v2*", "v3*" ]
+
+jobs:
+  # Bereitet die Abhängigkeiten für Windows vor.
+  # Dies ist ein separater Job, da dies sehr lange dauern (30-60 Min, falls alles gebaut werden muss) kann und das Ergebnis gecached werden soll, auch wenn das Bauen später fehlschlägt.
+  build_dependencies:
+    runs-on: windows-2025
+    timeout-minutes: 180
+
+    steps:
+    - uses: actions/checkout@v6
+
+    # Quick cache check without copying files
+    - name: Check whether cache exists
+      id: cache_test
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        lookup-only: true
+
+    - name: Restore cached dependencies
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        restore-keys: |
+          conan-${{ runner.os }}-
+
+    - name: Install Conan
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      uses: conan-io/setup-conan@v1
+
+    - name: Install Conan profiles
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      run: cp tools/conan/profiles/Windows/* ~/.conan2/profiles
+
+    - name: Build Conan dependencies (PC)
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      run: conan install . --lockfile-partial --build=missing --profile=cpr_windows_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']" -s:b compiler.cppstd=17
+
+    - name: Clear old dependencies
+      if: steps.cache_test.outputs.cache-hit != 'true'
+      run: conan remove --lru=8w "*"
+
+
+  # Build and run tests for Windows
+  test:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    needs: build_dependencies
+
+    steps:
+    - uses: actions/checkout@v6
+
+    # Get the MSVC environment
+    - uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Restore cached dependencies
+      id: cache
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        fail-on-cache-miss: true
+
+    - name: Install Conan
+      uses: conan-io/setup-conan@v1
+
+    - name: Configure CMake
+      run: |
+        cp .github\workflows\CMakePresets_Windows.json CMakePresets.json
+        cmake --preset conan-windows-x86_64-release
+
+    - name: Build Tests
+      run: |
+        cd out/build/Windows/Release
+        cmake --build . --target iRCApp_Tests.exe
+
+    - name: Run Tests
+      run: |
+        cd out/build/Windows/Release
+        ./iRCApp_Tests.exe
+
+    - name: Export Library
+      uses: actions/upload-artifact@v7
+      with:
+        path: out/build/Windows/Release/iRCApp.lib
+        archive: false

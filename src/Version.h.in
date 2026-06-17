@@ -1,0 +1,16 @@
+#pragma once
+
+#include <string>
+
+namespace App
+{
+namespace Version
+{
+
+// The version numbers are injected by CMake
+constexpr int Major = @PROJECT_VERSION_MAJOR@;
+constexpr int Minor = @PROJECT_VERSION_MINOR@;
+constexpr int Patch = @PROJECT_VERSION_PATCH@;
+
+} // namespace Version
+} // namespace App

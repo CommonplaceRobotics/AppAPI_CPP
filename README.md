@@ -1,4 +1,4 @@
-# iRC App interface API for C++
+# iRC App Interface Client API for C++
 
 This library provides a simple C++ interface to the igus Robot Control. It provides functions for observing the state of the robot, issuing motion commands, controlling robot programs, accessing files, updating and handling events from the app user interface, receiving commands from robot programs ("app commands") and much more.
 
@@ -125,10 +125,10 @@ To cross compile for the Embedded Robot Control (Raspberry Pi) you need:
 1. Build dependencies and conan for the build system (follow steps 1 - 5 of section "Linux native")
 2. Install the cross compiler tool chain (you can not use a generic one due to glibc and libstdc++ dependencies):
     ```sh
-        mkdir -p /opt/gcc
-        cd /opt/gcc
-        sudo wget --quiet https://downloads.cpr-robots.com/Software/CI/gcc_armv8-rpi4-linux-gnueabihf.tar.gz
-        sudo tar -xf gcc_armv8-rpi4-linux-gnueabihf.tar.gz
+	mkdir -p /opt/gcc
+	cd /opt/gcc
+	sudo wget --quiet https://downloads.cpr-robots.com/Software/CI/gcc_armv8-rpi4-linux-gnueabihf.tar.gz
+	sudo tar -xf gcc_armv8-rpi4-linux-gnueabihf.tar.gz
     ```
     You may install it to a different directory, in this case change the paths in the conan profile (```~/.conan2/profiles/cpr_linux_rpi4_gcc10```).
 3. In your project directory run the following command to download and build the dependencies and to generate a CMake toolchain file in ```out/conan/Linux/x86_64/Release/generators```.

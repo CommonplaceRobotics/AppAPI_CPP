@@ -7,9 +7,24 @@ class Recipe(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     generators = "CMakeDeps", "CMakeToolchain"
 
+    # Make sure grpc build and tool requirements use the same options so it won't be built twice (to save time)
+    grpc_options = {
+        "csharp_ext": "False",
+        "csharp_plugin": "False",
+        "node_plugin": "False",
+        "objective_c_plugin": "False",
+        "otel_plugin": "False",
+        "php_plugin": "False",
+        "python_plugin": "False",
+        "ruby_plugin": "False",
+    }
+
     def requirements(self):
         # These requirements are linked to the product binary
-        self.requires("grpc/1.81.0")
+        self.requires("grpc/1.81.0", options=self.grpc_options, run=True)
+
+        self.requires("protobuf/[^6.0.0]", run=True)
+        # Needed for protoc only, auto-picks the version req'd by grpc
 
     def build_requirements(self):
         # These requirements are tools or for testing and therefore are not part of the product
@@ -18,11 +33,6 @@ class Recipe(ConanFile):
 
         # gtest for testing
         self.test_requires("gtest/[^1.13]")
-
-        # We need the GRPC compiler on the host system
-        self.tool_requires("grpc/1.81.0")
-        # The protobuf version must match the version used by grpc (see conan.io). This explicit declaration is needed to get protoc in PATH.
-        self.tool_requires("protobuf/6.33.5")
 
     def layout(self):
         # Defines the directory structure

@@ -7,13 +7,22 @@
 cmake_minimum_required (VERSION 3.16)
 
 project(iRC_App_API
+	VERSION 14.6.7
     LANGUAGES C CXX
 )
+# Version suffix, should be empty for release versions
+set(PROJECT_VERSION_SUFFIX "")
+# Life cycle information for the SBOM
+set(RELEASE_DATE "2026-05-08")
+set(SUPPORT_PERIOD_END "2000-00-00") # TODO: define support period
+set(END_OF_LIFE "2000-00-00") # TODO: define end of life
+configure_file(src/Version.h.in src/Version.h)
+configure_file(sbomify.json.in sbomify.json)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-option(BUILD_TESTS "Compile tests" OFF)
+option(BUILD_TESTS "Compile tests" ON)
 
 ###############################################################################
 # Generating gRPC C++-Sources
@@ -59,7 +68,11 @@ target_include_directories(iRCApp
 	PUBLIC
 	src
     ${PROTO_SRC_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/src/
 )
+
+include(CMakePrintHelpers)
+cmake_print_variables(CMAKE_CURRENT_BINARY_DIR)
 
 target_link_libraries(iRCApp
     PUBLIC
@@ -91,8 +104,7 @@ endif()
 
 if (BUILD_TESTS)
     enable_testing()
-    find_package(gtest REQUIRED)
-
+    find_package(GTest REQUIRED)
     # Include the GoogleTest module for gtest_discover_tests()
     include(GoogleTest)
 
@@ -109,7 +121,7 @@ if (BUILD_TESTS)
 		PRIVATE
 		iRCApp
         GTest::gtest_main
-        GTest::gmock
+		GTest::gmock
 	)
 
     if(UNIX OR MINGW)
