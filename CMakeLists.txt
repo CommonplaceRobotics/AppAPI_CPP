@@ -10,8 +10,6 @@ project(iRC_App_API
 	VERSION 14.6.7
     LANGUAGES C CXX
 )
-# Version suffix, should be empty for release versions
-set(PROJECT_VERSION_SUFFIX "")
 # Life cycle information for the SBOM
 set(RELEASE_DATE "2026-05-08")
 set(SUPPORT_PERIOD_END "2000-00-00") # TODO: define support period
