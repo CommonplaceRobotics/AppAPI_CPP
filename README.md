@@ -1,4 +1,6 @@
 # iRC App Interface Client API for C++
+[![Build and Test for Linux](https://github.com/CommonplaceRobotics/AppAPI_CPP/actions/workflows/build_linux.yml/badge.svg)](https://github.com/CommonplaceRobotics/AppAPI_CPP/actions/workflows/build_linux.yml)
+[![Build and Test for Windows](https://github.com/CommonplaceRobotics/AppAPI_CPP/actions/workflows/build_windows.yml/badge.svg)](https://github.com/CommonplaceRobotics/AppAPI_CPP/actions/workflows/build_windows.yml)
 
 This library provides a simple C++ interface to the igus Robot Control. It provides functions for observing the state of the robot, issuing motion commands, controlling robot programs, accessing files, updating and handling events from the app user interface, receiving commands from robot programs ("app commands") and much more.
 
