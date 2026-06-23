@@ -140,7 +140,7 @@ public:
    */
   robotcontrolapp::Matrix44 ToGrpc() const;
 
-private:
+protected:
   // Contains the matrix data
   std::array<double, 16> m_data;
 };
