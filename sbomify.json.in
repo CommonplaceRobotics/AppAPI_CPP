@@ -7,7 +7,7 @@
   },
   "authors": [
 	{"name": "Commonplace Robotics GmbH", "email": "support@commonplacerobotics.de"}
-  ]
+  ],
   "licenses": ["MIT"],
   "security_contact": "mailto:support@commonplacerobotics.de",
   "release_date": "@RELEASE_DATE@",
