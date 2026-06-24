@@ -112,7 +112,7 @@ jobs:
   # Erstellt die SBOM und führt einen Schwachstellenscan durch
   sbom_linux:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     needs: build_dependencies_pc
 
     steps:
