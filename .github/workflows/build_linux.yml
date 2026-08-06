@@ -40,7 +40,7 @@ jobs:
     - uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Linux_armv8_32@v1
       with:
         lockfile: 'conan_linux.lock'
-        cache_key: conan-${{ runner.os }}-x86_64-${{ hashFiles('**/conan_linux.lock', '**/conanfile.py') }}
+        cache_key: conan-${{ runner.os }}-armv8_32-${{ hashFiles('**/conan_linux.lock', '**/conanfile.py') }}
 
 
   # Build and run tests for Linux x86_64
