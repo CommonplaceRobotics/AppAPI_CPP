@@ -27,9 +27,9 @@ if [ ! "$IS_CONAN_INSTALLED_GLOBALLY" ]; then
 fi
 
 echo "Building release dependencies..."
-conan install . --lockfile-partial --build=missing --profile:host=cpr_linux_rpi4_gcc10_release --profile:build=cpr_linux_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']"
+conan install . --lockfile conan_linux.lock --lockfile-partial --build=missing --profile:host=cpr_linux_rpi4_gcc10_release --profile:build=cpr_linux_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']"
 # Uncomment to build dependencies for debugging
-#conan install . --lockfile-partial --build=missing --profile:host=cpr_linux_rpi4_gcc10_debug --profile:build=cpr_linux_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']"
+#conan install . --lockfile conan_linux.lock --lockfile-partial --build=missing --profile:host=cpr_linux_rpi4_gcc10_debug --profile:build=cpr_linux_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']"
 
 echo "Clearing unused dependencies..."
 conan remove --lru=12w "*"

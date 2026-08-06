@@ -4,7 +4,7 @@
 # Dazu werden zunächst die Abhängigkeiten gebaut und gecached.
 #
 # Vorbedingung:
-# - Die Conan-Lockdatei (conan.lock) muss existieren.
+# - Die Conan-Lockdatei (conan_windows.lock) muss existieren.
 
 name: Build and Test for Windows
 
@@ -18,59 +18,25 @@ jobs:
   # Bereitet die Abhängigkeiten für Windows vor.
   # Dies ist ein separater Job, da dies sehr lange dauern (30-60 Min, falls alles gebaut werden muss) kann und das Ergebnis gecached werden soll, auch wenn das Bauen später fehlschlägt.
   build_dependencies:
-    runs-on: windows-2025
-    timeout-minutes: 180
+    runs-on: CPR_Windows11
+    timeout-minutes: 120
 
     steps:
-    - uses: actions/checkout@v6
-
-    # Quick cache check without copying files
-    - name: Check whether cache exists
-      id: cache_test
-      uses: actions/cache/restore@v5
+    - uses: actions/checkout@v7
+    - uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Windows@v1
       with:
-        path: |
-          ~/.conan2
-          out
-        key: conan-${{ runner.os }}-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
-        lookup-only: true
-
-    - name: Restore cached dependencies
-      if: steps.cache_test.outputs.cache-hit != 'true'
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.conan2
-          out
-        key: conan-${{ runner.os }}-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
-        restore-keys: |
-          conan-${{ runner.os }}-
-
-    - name: Install Conan
-      if: steps.cache_test.outputs.cache-hit != 'true'
-      uses: conan-io/setup-conan@v1
-
-    - name: Install Conan profiles
-      if: steps.cache_test.outputs.cache-hit != 'true'
-      run: cp tools/conan/profiles/Windows/* ~/.conan2/profiles
-
-    - name: Build Conan dependencies (PC)
-      if: steps.cache_test.outputs.cache-hit != 'true'
-      run: conan install . --lockfile-partial --build=missing --profile=cpr_windows_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']" -s:b compiler.cppstd=17
-
-    - name: Clear old dependencies
-      if: steps.cache_test.outputs.cache-hit != 'true'
-      run: conan remove --lru=8w "*"
+        lockfile: 'conan_windows.lock'
+        cache_key: conan-${{ runner.os }}-${{ hashFiles('conan_windows.lock', 'conanfile.py') }}
 
 
   # Build and run tests for Windows
   test:
-    runs-on: windows-2025
+    runs-on: CPR_Windows11
     timeout-minutes: 15
     needs: build_dependencies
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     # Get the MSVC environment
     - uses: ilammy/msvc-dev-cmd@v1
@@ -82,7 +48,7 @@ jobs:
         path: |
           ~/.conan2
           out
-        key: conan-${{ runner.os }}-${{ hashFiles('**/conan.lock', '**/conanfile.py') }}
+        key: conan-${{ runner.os }}-${{ hashFiles('conan_windows.lock', 'conanfile.py') }}
         fail-on-cache-miss: true
 
     - name: Install Conan
@@ -108,3 +74,106 @@ jobs:
       with:
         path: out/build/Windows/Release/iRCApp.lib
         archive: false
+
+    - name: Export CMake build directory for SBOM
+      uses: actions/upload-artifact@v7
+      with:
+        name: INTERNAL_CMake_build_dir
+        path: out/build
+
+
+  # Creates the SBOM and checks its compliance
+  # sbomify requires this to run on Linux but loading the Cache is not possible due to files in ~
+  sbom_pt1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v7
+
+    # Liest die Core-Version aus CMakeLists.txt
+    - name: Get software version
+      run: |
+        VER=`grep -E -o "VERSION[[:blank:]]+[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+" CMakeLists.txt | sed "s/[^0-9.]*//g"`
+        echo "Software version '$VER' detected"
+        echo "SW_VERSION=$VER" >> $GITHUB_ENV
+
+    - name: Create incomplete SBOM
+      uses: CommonplaceRobotics/SW_Create_Conan_SBOM@v1
+      with:
+        lockfile: conan_windows.lock
+        sbom: sbom_temp1.cdx.json
+
+    - name: Enrich and Augment SBOM
+      uses: sbomify/sbomify-action@master
+      env:
+        SBOM_FILE: sbom_temp1.cdx.json
+        OUTPUT_FILE: sbom_temp2.cdx.json
+        COMPONENT_NAME: AppAPI_CPP
+        COMPONENT_VERSION: ${{ env.SW_VERSION }}
+        # Produkt- und Firmeninfo werden aus sbomify.json geladen
+        AUGMENT: true
+        # Metadaten aus Paket-Registry hinzufügen
+        ENRICH: true
+        # Metadaten aus additional_packages_rpi.txt hinzufügen
+        ADDITIONAL_PACKAGES_FILE: additional_packages_rpi.txt
+        UPLOAD: false
+
+    - name: Export incomplete SBOM
+      uses: actions/upload-artifact@v7
+      with:
+        path: sbom_temp2.cdx.json
+        archive: false
+
+
+  # Complete the SBOM on Windows where we can access the cache
+  sbom_pt2:
+    runs-on: CPR_Windows11
+    timeout-minutes: 15
+    needs: sbom_pt1
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Restore cached dependencies
+      id: cache
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.conan2
+          out
+        key: conan-${{ runner.os }}-${{ hashFiles('conan_windows.lock', 'conanfile.py') }}
+        fail-on-cache-miss: true
+
+    # This loads the build dir including the library
+    # We need the library to calculate its hash
+    - name: Import CMake build dir
+      uses: actions/download-artifact@v8
+      with:
+        name: INTERNAL_CMake_build_dir
+        path: out/build
+
+    - name: Import incomplete SBOM
+      uses: actions/download-artifact@v8
+      with:
+        name: sbom_temp2.cdx.json
+
+    - name: Final SBOM enrichment
+      uses: CommonplaceRobotics/Action_SBOM_Enrichment@v4
+      with:
+        database: .github/workflows/sbom_enrichment_db.json
+        sbom: sbom_temp2.cdx.json
+        sbom_out: sbom_rpi.cdx.json
+        cmake_build_dir: out/build/Windows/Release
+
+    - name: Export SBOM
+      uses: actions/upload-artifact@v7
+      with:
+        path: sbom_rpi.cdx.json
+        archive: false
+
+    - name: Validate SBOM with company policies
+      uses: CommonplaceRobotics/SW_Validate_SBOM@v1
+      with:
+        sbom: sbom_rpi.cdx.json

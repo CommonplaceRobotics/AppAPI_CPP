@@ -1,6 +1,7 @@
 import os
 
 from conan import ConanFile
+from conan.tools.build import cross_building
 
 
 class Recipe(ConanFile):
@@ -21,20 +22,18 @@ class Recipe(ConanFile):
 
     def requirements(self):
         # These requirements are linked to the product binary
-        self.requires("grpc/1.81.0", options=self.grpc_options, run=True)
+        self.requires("grpc/1.82.0", options=self.grpc_options, run=True)
 
-        # If NOT cross compiling
-        if not str(self.settings.arch).startswith("arm"):
+        if not cross_building(self):
             # Needed for protoc only, auto-picks the version req'd by grpc
             self.requires("protobuf/[^6.0.0]", run=True)
-        
+
     def build_requirements(self):
         # These requirements are tools or for testing and therefore are not part of the product
 
-        # If cross compiling
-        if str(self.settings.arch).startswith("arm"):
-            self.tool_requires("grpc/1.81.0", options=self.grpc_options)
-            
+        if cross_building(self):
+            self.tool_requires("grpc/1.82.0", options=self.grpc_options)
+
             # Needed for protoc only, auto-picks the version req'd by grpc
             self.tool_requires("protobuf/[^6.0.0]")
 
