@@ -113,6 +113,9 @@ jobs:
         key: conan-${{ runner.os }}-armv8_32-${{ hashFiles('conan_linux.lock', 'conanfile.py') }}
         fail-on-cache-miss: true
 
+    - name: Install RPi Cross-Compiler
+      uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Install_Toolchain_armv8_32@v1
+
     - name: Install Conan
       uses: conan-io/setup-conan@v1
 

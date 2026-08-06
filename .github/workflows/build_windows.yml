@@ -164,16 +164,16 @@ jobs:
       with:
         database: .github/workflows/sbom_enrichment_db.json
         sbom: sbom_temp2.cdx.json
-        sbom_out: sbom_rpi.cdx.json
+        sbom_out: sbom_windows.cdx.json
         cmake_build_dir: out/build/Windows/Release
 
     - name: Export SBOM
       uses: actions/upload-artifact@v7
       with:
-        path: sbom_rpi.cdx.json
+        path: sbom_windows.cdx.json
         archive: false
 
     - name: Validate SBOM with company policies
       uses: CommonplaceRobotics/SW_Validate_SBOM@v1
       with:
-        sbom: sbom_rpi.cdx.json
+        sbom: sbom_windows.cdx.json
