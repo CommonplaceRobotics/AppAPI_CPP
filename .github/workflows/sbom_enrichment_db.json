@@ -3,6 +3,8 @@
     [
 		{
 			"purl": "pkg:generic/appapi_cpp@",
+			"type": "library",
+			"creator": "support@cpr-robots.com",
 			"filename": ["out/build/Linux/x86_64/Release/libiRCApp.a", "out/build/Linux/armv8_32/Release/libiRCApp.a", "out/build/Windows/Release/iRCApp.lib"],
             "original_licenses": ["non-standard"],
             "distribution_licenses": ["non-standard"],

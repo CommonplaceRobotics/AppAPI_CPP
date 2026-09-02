@@ -211,7 +211,7 @@ jobs:
         UPLOAD: false
 
     - name: Final SBOM enrichment
-      uses: CommonplaceRobotics/Action_SBOM_Enrichment@v4
+      uses: CommonplaceRobotics/Action_SBOM_Enrichment@v7
       with:
         database: .github/workflows/sbom_enrichment_db.json
         sbom: sbom_temp2.cdx.json
@@ -225,6 +225,6 @@ jobs:
         archive: false
 
     - name: Validate SBOM with company policies
-      uses: CommonplaceRobotics/SW_Validate_SBOM@v1
+      uses: CommonplaceRobotics/SW_Validate_SBOM@v5
       with:
         sbom: sbom_rpi.cdx.json
