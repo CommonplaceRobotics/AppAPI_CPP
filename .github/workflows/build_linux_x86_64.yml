@@ -1,12 +1,10 @@
 # Dieser Workflow
 # - Baut die Tests für x86_64 führt sie aus
-# - Erstellt SBOM wird und prüft sie auf Schwachstellen in den Abhängigkeiten
-# Dazu werden zunächst die Abhängigkeiten gebaut und gecached.
 #
 # Vorbedingung:
-# - Die Conan-Lockdatei (conan_linux.lock) muss existieren.
+# - Die Conan-Lockdatei (conan_linux_x86_64.lock) muss existieren.
 
-name: Build and Test for Linux
+name: Build and Test for Linux x86_64
 
 on:
   push:
@@ -23,24 +21,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
-    - uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Linux_x86_64@v1
+    - uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Linux_x86_64@v2
       with:
-        lockfile: 'conan_linux.lock'
-        cache_key: conan-${{ runner.os }}-x86_64-${{ hashFiles('**/conan_linux.lock', '**/conanfile.py') }}
-
-
-  # Bereitet die Abhängigkeiten für RPi vor.
-  # Separater Job mit selber Begründung wie oben.
-  build_dependencies_rpi:
-    runs-on: CPR_Ubuntu2404
-    timeout-minutes: 90
-
-    steps:
-    - uses: actions/checkout@v7
-    - uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Linux_armv8_32@v1
-      with:
-        lockfile: 'conan_linux.lock'
-        cache_key: conan-${{ runner.os }}-armv8_32-${{ hashFiles('**/conan_linux.lock', '**/conanfile.py') }}
+        lockfile: 'conan_linux_x86_64.lock'
+        cache_key: conan-${{ runner.os }}-x86_64-${{ hashFiles('**/conan_linux_x86_64.lock', '**/conanfile.py') }}
 
 
   # Build and run tests for Linux x86_64
@@ -60,7 +44,7 @@ jobs:
         path: |
           ~/.conan2
           out
-        key: conan-${{ runner.os }}-x86_64-${{ hashFiles('conan_linux.lock', 'conanfile.py') }}
+        key: conan-${{ runner.os }}-x86_64-${{ hashFiles('conan_linux_x86_64.lock', 'conanfile.py') }}
         fail-on-cache-miss: true
 
     - name: Install Conan
@@ -93,59 +77,11 @@ jobs:
         archive: false
 
 
-  # Build for RPi
-  build_rpi:
-    #runs-on: ubuntu-latest
-    runs-on: CPR_Ubuntu2404
-    timeout-minutes: 15
-    needs: build_dependencies_rpi
-
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Restore cached dependencies
-      id: cache
-      uses: actions/cache/restore@v5
-      with:
-        path: |
-          ~/.conan2
-          out
-        key: conan-${{ runner.os }}-armv8_32-${{ hashFiles('conan_linux.lock', 'conanfile.py') }}
-        fail-on-cache-miss: true
-
-    - name: Install RPi Cross-Compiler
-      uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Install_Toolchain_armv8_32@v1
-
-    - name: Install Conan
-      uses: conan-io/setup-conan@v1
-
-    - name: Configure CMake
-      run: |
-        rm -f CMakePresets.json
-        echo "{\"version\": 4,\"include\":[\"out/conan/Linux/armv8_32/Release/generators/CMakePresets.json\"]}" >> CMakePresets.json
-        cmake --preset conan-linux-armv8_32-release
-
-    - name: Build Library (armv8_32)
-      run: |
-        cd out/build/Linux/armv8_32/Release
-        cmake --build . --target iRCApp
-
-    - name: Rename Library
-      run: mv out/build/Linux/armv8_32/Release/libiRCApp.a out/build/Linux/armv8_32/Release/libiRCApp_armv8_32.a
-
-    - name: Export Library
-      uses: actions/upload-artifact@v7
-      with:
-        name: libiRCApp_armv8_32.a
-        path: out/build/Linux/armv8_32/Release/libiRCApp_armv8_32.a
-        archive: false
-
-
   # Creates the SBOM and checks its compliance
   sbom:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: build_rpi
+    needs: test
 
     steps:
     - uses: actions/checkout@v7
@@ -157,30 +93,26 @@ jobs:
         path: |
           ~/.conan2
           out
-        key: conan-${{ runner.os }}-armv8_32-${{ hashFiles('conan_linux.lock', 'conanfile.py') }}
+        key: conan-${{ runner.os }}-x86_64-${{ hashFiles('conan_linux_x86_64.lock', 'conanfile.py') }}
         fail-on-cache-miss: true
-
-    # This is needed so CMake can run, we won't compile anything here
-    - name: Install RPi Cross-Compiler
-      uses: CommonplaceRobotics/Action_Build_Conan_Dependencies/Install_Toolchain_armv8_32@v1
 
     # This generates sbomify.json with lifecycle info
     - name: Configure CMake
       run: |
         rm -f CMakePresets.json
-        echo "{\"version\": 4,\"include\":[\"out/conan/Linux/armv8_32/Release/generators/CMakePresets.json\"]}" >> CMakePresets.json
-        cmake --preset conan-linux-armv8_32-release
-        mv out/build/Linux/armv8_32/Release/sbomify.json .
+        echo "{\"version\": 4,\"include\":[\"out/conan/Linux/x86_64/Release/generators/CMakePresets.json\"]}" >> CMakePresets.json
+        cmake --preset conan-linux-x86_64-release
+        mv out/build/Linux/x86_64/Release/sbomify.json .
 
     # We need the library to calculate its hash
     - name: Import Library
       uses: actions/download-artifact@v8
       with:
-        name: libiRCApp_armv8_32.a
-        path: out/build/Linux/armv8_32/Release
+        name: libiRCApp_x86_64.a
+        path: out/build/Linux/x86_64/Release
 
     - name: Rename Library
-      run: mv out/build/Linux/armv8_32/Release/libiRCApp_armv8_32.a out/build/Linux/armv8_32/Release/libiRCApp.a
+      run: mv out/build/Linux/x86_64/Release/libiRCApp_x86_64.a out/build/Linux/x86_64/Release/libiRCApp.a
 
     # Liest die Core-Version aus CMakeLists.txt
     - name: Get software version
@@ -190,10 +122,11 @@ jobs:
         echo "SW_VERSION=$VER" >> $GITHUB_ENV
 
     - name: Create incomplete SBOM
-      uses: CommonplaceRobotics/SW_Create_Conan_SBOM@v1
+      uses: CommonplaceRobotics/Action_Create_Conan_SBOM@v4
       with:
-        lockfile: conan_linux.lock
+        lockfile: conan_linux_rpi.lock
         sbom: sbom_temp1.cdx.json
+        conan_params: '--profile=cpr_linux_x86_64_release'
 
     - name: Enrich and Augment SBOM
       uses: sbomify/sbomify-action@master
@@ -215,16 +148,16 @@ jobs:
       with:
         database: .github/workflows/sbom_enrichment_db.json
         sbom: sbom_temp2.cdx.json
-        sbom_out: sbom_rpi.cdx.json
-        cmake_build_dir: out/build/Linux/armv8_32/Release
+        sbom_out: sbom_linux_x86_64.cdx.json
+        cmake_build_dir: out/build/Linux/x86_64/Release
 
     - name: Export SBOM
       uses: actions/upload-artifact@v7
       with:
-        path: sbom_rpi.cdx.json
+        path: sbom_linux_x86_64.cdx.json
         archive: false
 
     - name: Validate SBOM with company policies
       uses: CommonplaceRobotics/SW_Validate_SBOM@v5
       with:
-        sbom: sbom_rpi.cdx.json
+        sbom: sbom_linux_x86_64.cdx.json
