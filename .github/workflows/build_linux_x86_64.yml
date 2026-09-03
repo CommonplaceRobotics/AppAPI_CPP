@@ -1,6 +1,3 @@
-# Dieser Workflow
-# - Baut die Tests für x86_64 führt sie aus
-#
 # Vorbedingung:
 # - Die Conan-Lockdatei (conan_linux_x86_64.lock) muss existieren.
 

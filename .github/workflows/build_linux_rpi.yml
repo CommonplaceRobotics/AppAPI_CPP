@@ -1,11 +1,7 @@
-# Dieser Workflow
-# - Baut die Abhängigkeiten für RPi
-# - Erstellt die SBOM
-#
 # Vorbedingung:
 # - Die Conan-Lockdatei (conan_linux_rpi.lock) muss existieren.
 
-name: Build RPi
+name: Build for RPi
 
 on:
   push:
