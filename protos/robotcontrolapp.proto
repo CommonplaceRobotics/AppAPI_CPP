@@ -327,6 +327,12 @@ message Joint {
     JointPosition position = 3;
     // Hardware error state
     HardwareState state = 5;
+    // Hardware state (manufacturer specific code)
+    uint64 state_code = 11;
+    // is the robot enabled and ready for motion?
+    bool is_enabled = 12;
+    // is the robot in an error state?
+    bool is_error = 13;
 
     ReferencingState referencing_state = 6;
 
@@ -359,8 +365,16 @@ message RobotState {
     repeated DOut DOuts = 6;
     repeated GSig GSigs = 7;
 
-    // hardware error state
+    // hardware state string
     string hardware_state_string = 11;
+    // Hardware state enum
+    HardwareState hardware_state = 21;
+    // Hardware state (manufacturer specific code)
+    uint64 hardware_state_code = 22;
+    // is the robot enabled and ready for motion?
+    bool is_enabled = 23;
+    // is the robot in an error state?
+    bool is_error = 24;
     // kinematic error state
     KinematicState kinematic_state = 12;
 

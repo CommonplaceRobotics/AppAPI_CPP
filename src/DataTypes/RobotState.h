@@ -92,6 +92,19 @@ public:
         HardwareState hardwareState = HardwareState::OKAY;
 
         /**
+         * @brief Manufacturer specific hardware state code
+         */
+        uint64_t hardwareStateCode = 0x0;
+        /**
+         * @brief Is the motor enabled and ready to move?
+         */
+        bool isEnabled = false;
+        /**
+         * @brief Is the joint in error state?
+         */
+        bool isError = false;
+
+        /**
          * @brief Referencing state
          */
         ReferencingState referencingState = ReferencingState::NOT_REFERENCED;
@@ -148,6 +161,24 @@ public:
      * @brief A string describing the combined state of all modules
      */
     std::string hardwareState;
+
+    /**
+     * @brief Hardware state enum value
+     */
+    HardwareState hardwareStateEnum = HardwareState::OKAY;
+    /**
+     * @brief Manufacturer specific hardware state code
+     */
+    uint64_t hardwareStateCode = 0;
+    /**
+     * @brief Are the motors enabled and ready to move?
+     */
+    bool isEnabled = false;
+    /**
+     * @brief Is any module in error state?
+     */
+    bool isError = false;
+
     /**
      * @brief Kinematic state / error
      */

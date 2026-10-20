@@ -13,6 +13,9 @@ TEST(App_RobotStateJointTest, ConstructorDefault)
     EXPECT_DOUBLE_EQ(0, joint.targetPosition);
     EXPECT_EQ(App::DataTypes::RobotState::HardwareState::OKAY, joint.hardwareState);
     EXPECT_EQ(App::DataTypes::RobotState::ReferencingState::NOT_REFERENCED, joint.referencingState);
+    EXPECT_EQ(0, joint.hardwareStateCode);
+    EXPECT_FALSE(joint.isEnabled);
+    EXPECT_FALSE(joint.isError);
     EXPECT_FLOAT_EQ(0, joint.temperatureBoard);
     EXPECT_FLOAT_EQ(0, joint.temperatureMotor);
     EXPECT_FLOAT_EQ(0, joint.current);
@@ -28,6 +31,9 @@ TEST(App_RobotStateJointTest, ConstructorGRPC)
         jointGrpc.mutable_position()->set_position(123.4);
         jointGrpc.mutable_position()->set_target_position(234.5);
         jointGrpc.set_state(robotcontrolapp::HardwareState::ERROR_ESTOP_LOW_VOLTAGE);
+        jointGrpc.set_state_code(1234);
+        jointGrpc.set_is_enabled(true);
+        jointGrpc.set_is_error(false);
         jointGrpc.set_referencing_state(robotcontrolapp::ReferencingState::IS_REFERENCING);
         jointGrpc.set_temperature_board(45.6f);
         jointGrpc.set_temperature_motor(56.7f);
@@ -41,6 +47,9 @@ TEST(App_RobotStateJointTest, ConstructorGRPC)
         EXPECT_DOUBLE_EQ(123.4, joint.actualPosition);
         EXPECT_DOUBLE_EQ(234.5, joint.targetPosition);
         EXPECT_EQ(App::DataTypes::RobotState::HardwareState::ERROR_ESTOP_LOW_VOLTAGE, joint.hardwareState);
+        EXPECT_EQ(1234, joint.hardwareStateCode);
+        EXPECT_TRUE(joint.isEnabled);
+        EXPECT_FALSE(joint.isError);
         EXPECT_EQ(App::DataTypes::RobotState::ReferencingState::IS_REFERENCING, joint.referencingState);
         EXPECT_FLOAT_EQ(45.6f, joint.temperatureBoard);
         EXPECT_FLOAT_EQ(56.7f, joint.temperatureMotor);
@@ -54,6 +63,8 @@ TEST(App_RobotStateJointTest, ConstructorGRPC)
             (robotcontrolapp::HardwareState)(robotcontrolapp::HardwareState::ERROR_MOTOR_NOT_ENABLED | robotcontrolapp::HardwareState::ERROR_DRIVER);
         jointGrpc.set_state(state);
         jointGrpc.set_referencing_state(robotcontrolapp::ReferencingState::NOT_REFERENCED);
+        jointGrpc.set_is_enabled(false);
+        jointGrpc.set_is_error(true);
 
         App::DataTypes::RobotState::Joint joint(jointGrpc);
 
@@ -61,6 +72,8 @@ TEST(App_RobotStateJointTest, ConstructorGRPC)
             (App::DataTypes::RobotState::HardwareState)((int)App::DataTypes::RobotState::HardwareState::ERROR_MOTOR_NOT_ENABLED |
                                                         (int)App::DataTypes::RobotState::HardwareState::ERROR_DRIVER);
         EXPECT_EQ(expectState, joint.hardwareState);
+        EXPECT_FALSE(joint.isEnabled);
+        EXPECT_TRUE(joint.isError);
         EXPECT_EQ(App::DataTypes::RobotState::ReferencingState::NOT_REFERENCED, joint.referencingState);
     }
 
@@ -116,6 +129,11 @@ TEST(App_RobotStateTest, ConstructorDefault)
     }
 
     EXPECT_TRUE(robotState.hardwareState.empty());
+    EXPECT_EQ(App::DataTypes::RobotState::HardwareState::OKAY, robotState.hardwareStateEnum);
+    EXPECT_EQ(0, robotState.hardwareStateCode);
+    EXPECT_FALSE(robotState.isEnabled);
+    EXPECT_FALSE(robotState.isError);
+
     EXPECT_EQ(robotcontrolapp::KinematicState::KINEMATIC_NORMAL, robotState.kinematicState);
     EXPECT_FLOAT_EQ(0, robotState.velocityOverride);
     EXPECT_FLOAT_EQ(0, robotState.cartesianVelocity);
@@ -159,6 +177,11 @@ TEST(App_RobotStateTest, ConstructorGRPC)
         }
 
         robotStateGrpc.set_hardware_state_string("MNE_ENC");
+        robotStateGrpc.set_hardware_state(robotcontrolapp::HardwareState::ERROR_ESTOP_LOW_VOLTAGE);
+        robotStateGrpc.set_hardware_state_code(2345);
+        robotStateGrpc.set_is_enabled(true);
+        robotStateGrpc.set_is_error(false);
+
         robotStateGrpc.set_kinematic_state(robotcontrolapp::KinematicState::KINEMATIC_ERROR_BRAKE_ACTIVE);
         robotStateGrpc.set_velocity_override(0.8f);
         robotStateGrpc.set_cartesian_velocity(45.6f);
@@ -206,6 +229,11 @@ TEST(App_RobotStateTest, ConstructorGRPC)
         }
 
         EXPECT_STREQ("MNE_ENC", robotState.hardwareState.c_str());
+        EXPECT_EQ(App::DataTypes::RobotState::HardwareState::ERROR_ESTOP_LOW_VOLTAGE, robotState.hardwareStateEnum);
+        EXPECT_EQ(2345, robotState.hardwareStateCode);
+        EXPECT_TRUE(robotState.isEnabled);
+        EXPECT_FALSE(robotState.isError);
+
         EXPECT_EQ(robotcontrolapp::KinematicState::KINEMATIC_ERROR_BRAKE_ACTIVE, robotState.kinematicState);
         EXPECT_FLOAT_EQ(0.8f, robotState.velocityOverride);
         EXPECT_FLOAT_EQ(45.6f, robotState.cartesianVelocity);
@@ -320,7 +348,47 @@ TEST(App_RobotStateTest, ConstructorGRPC)
         {
             EXPECT_EQ(i % 2 == 0, robotState.globalSignals[i]);
         }
-
-        EXPECT_EQ(App::DataTypes::RobotState::ReferencingState::IS_REFERENCED, robotState.referencingState);
     }
+
+    // isEnabled and isError swapped
+    {
+        robotcontrolapp::RobotState robotStateGrpc;
+        robotStateGrpc.set_is_enabled(false);
+        robotStateGrpc.set_is_error(true);
+
+        App::DataTypes::Matrix44 tcp;
+        tcp.SetOrientation(10, 20, 30);
+        tcp.Translate(100, 200, 300);
+        *robotStateGrpc.mutable_tcp() = tcp.ToGrpc();
+
+        // Test
+        App::DataTypes::RobotState robotState(robotStateGrpc);
+
+        EXPECT_FALSE(robotState.isEnabled);
+        EXPECT_TRUE(robotState.isError);
+    }
+}
+
+TEST(App_RobotStateTest, IsEnabled)
+{
+    App::DataTypes::RobotState rs;
+    EXPECT_FALSE(rs.IsEnabled());
+
+    rs.hardwareState = "NoError";
+    rs.hardwareStateEnum = App::DataTypes::RobotState::HardwareState::OKAY;
+    rs.hardwareStateCode = 0x0;
+    rs.isEnabled = false;
+    rs.isError = false;
+    EXPECT_FALSE(rs.IsEnabled());
+
+    rs.isEnabled = true;
+    EXPECT_TRUE(rs.IsEnabled());
+
+    rs.hardwareState = "MNE_COM";
+    rs.hardwareStateEnum = App::DataTypes::RobotState::HardwareState::ERROR_ENCODER;
+    rs.hardwareStateCode = 0xFF;
+    EXPECT_TRUE(rs.IsEnabled());
+
+    rs.isError = true;
+    EXPECT_TRUE(rs.IsEnabled());
 }

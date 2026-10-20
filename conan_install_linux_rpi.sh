@@ -31,4 +31,4 @@ conan install . --lockfile conan_linux_rpi.lock --lockfile-partial --build=missi
 conan install . --lockfile conan_linux_rpi.lock --lockfile-partial --build=missing --profile:host=cpr_linux_rpi4_gcc10_debug --profile:build=cpr_linux_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']" -s "&:build_type=Debug" -s "build_type=Release"
 
 echo "Clearing unused dependencies..."
-conan remove --lru=12w "*"
+conan remove --lru=12w "*" -c

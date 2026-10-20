@@ -52,6 +52,10 @@ RobotState::RobotState(const robotcontrolapp::RobotState& state)
     }
 
     hardwareState = state.hardware_state_string();
+    hardwareStateEnum = static_cast<DataTypes::RobotState::HardwareState>(state.hardware_state());
+    hardwareStateCode = state.hardware_state_code();
+    isEnabled = state.is_enabled();
+    isError = state.is_error();
     kinematicState = state.kinematic_state();
     velocityOverride = state.velocity_override();
     cartesianVelocity = state.cartesian_velocity();
@@ -86,6 +90,9 @@ RobotState::Joint::Joint(const robotcontrolapp::Joint& joint)
     targetPosition = joint.position().target_position();
 
     hardwareState = static_cast<DataTypes::RobotState::HardwareState>(joint.state());
+    hardwareStateCode = joint.state_code();
+    isEnabled = joint.is_enabled();
+    isError = joint.is_error();
 
     switch (joint.referencing_state())
     {
@@ -114,7 +121,7 @@ RobotState::Joint::Joint(const robotcontrolapp::Joint& joint)
  */
 bool RobotState::IsEnabled() const
 {
-    return hardwareState == "NoError";
+    return isEnabled;
 }
 
 } // namespace DataTypes

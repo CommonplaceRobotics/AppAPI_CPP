@@ -6,4 +6,4 @@ conan install . --lockfile conan_windows.lock --lockfile-partial --build=missing
 #conan install . --lockfile conan_windows.lock --lockfile-partial --build=missing --profile=cpr_windows_x86_64_debug -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']" -s:b compiler.cppstd=17
 
 # Clear unused dependencies
-conan remove --lru=12w "*"
+conan remove --lru=12w "*" -c
