@@ -7,7 +7,8 @@
 #include <fstream>
 #include <iostream>
 
-namespace App {
+namespace App
+{
 
 /**
  * @brief Constructor, sets up the connection
@@ -15,174 +16,185 @@ namespace App {
  * @param target connection target in the following format: "hostname:port" or
  * "ip:port", e.g. "localhost:5000"
  */
-AppClient::AppClient(const std::string &appName, const std::string &target)
-    : m_appName(appName) {
-  std::shared_ptr<grpc::Channel> channel =
-      grpc::CreateChannel(target, grpc::InsecureChannelCredentials());
-  m_grpcStub = robotcontrolapp::RobotControlApp::NewStub(channel);
+AppClient::AppClient(const std::string& appName, const std::string& target) : m_appName(appName)
+{
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(target, grpc::InsecureChannelCredentials());
+    m_grpcStub = robotcontrolapp::RobotControlApp::NewStub(channel);
 }
 
 /**
  * @brief Destructor
  */
-AppClient::~AppClient() { Disconnect(); }
+AppClient::~AppClient()
+{
+    Disconnect();
+}
 
 /**
  * @brief Connects the app
  */
-void AppClient::Connect() {
-  std::unique_lock<std::recursive_mutex> threadLock(m_threadMutex);
-  if (m_stopThreads) {
-    if (logDebug)
-      std::cout << "Connecting app '" << GetAppName() << '\'' << std::endl;
-    m_stopThreads = false;
+void AppClient::Connect()
+{
+    std::unique_lock<std::recursive_mutex> threadLock(m_threadMutex);
+    if (m_stopThreads)
+    {
+        if (logDebug) std::cout << "Connecting app '" << GetAppName() << '\'' << std::endl;
+        m_stopThreads = false;
 
-    // clear queue
-    std::unique_lock<std::mutex> actionsLock(m_actionsMutex);
-    m_actionsQueue = std::queue<robotcontrolapp::AppAction>();
-    actionsLock.unlock();
+        // clear queue
+        std::unique_lock<std::mutex> actionsLock(m_actionsMutex);
+        m_actionsQueue = std::queue<robotcontrolapp::AppAction>();
+        actionsLock.unlock();
 
-    // Send an empty action at startup (this is queued and sent later by the
-    // thread)
-    SendAction(robotcontrolapp::AppAction());
+        // Send an empty action at startup (this is queued and sent later by the
+        // thread)
+        SendAction(robotcontrolapp::AppAction());
 
-    // Start threads
-    m_grpcStream =
-        std::shared_ptr<grpc::ClientReaderWriter<robotcontrolapp::AppAction,
-                                                 robotcontrolapp::Event>>(
-            m_grpcStub->RecieveActions(&m_grpcStreamContext));
-    m_eventReaderThread = std::thread(&AppClient::EventReaderThread, this);
-    m_actionsWriterThread = std::thread(&AppClient::ActionsWriterThread, this);
+        // Start threads
+        m_grpcStream =
+            std::shared_ptr<grpc::ClientReaderWriter<robotcontrolapp::AppAction, robotcontrolapp::Event>>(m_grpcStub->RecieveActions(&m_grpcStreamContext));
+        m_eventReaderThread = std::thread(&AppClient::EventReaderThread, this);
+        m_actionsWriterThread = std::thread(&AppClient::ActionsWriterThread, this);
 
-    SendCapabilities();
-    auto systemInfo = GetSystemInfo();
-    if (!CheckCoreVersion(systemInfo)) {
-      std::cerr << "WARNING: The connected robot does not support all features "
-                   "of this app API ("
-                << 'V' << systemInfo.versionMajor << '.'
-                << systemInfo.versionMinor << '.' << systemInfo.versionPatch
-                << " < V" << VERSION_MAJOR_MIN << '.' << VERSION_MINOR_MIN
-                << '.' << VERSION_PATCH_MIN
-                << "). This app may not work correctly." << std::endl;
+        SendCapabilities();
+        auto systemInfo = GetSystemInfo();
+        if (!CheckCoreVersion(systemInfo))
+        {
+            std::cerr << "WARNING: The connected robot does not support all features "
+                         "of this app API ("
+                      << 'V' << systemInfo.versionMajor << '.' << systemInfo.versionMinor << '.' << systemInfo.versionPatch << " < V" << VERSION_MAJOR_MIN
+                      << '.' << VERSION_MINOR_MIN << '.' << VERSION_PATCH_MIN << "). This app may not work correctly." << std::endl;
+        }
     }
-  } else {
-    std::cerr << "Connect requested for app '" << GetAppName()
-              << "' but it is still connected. Please call disconnect first!"
-              << std::endl;
-  }
+    else
+    {
+        std::cerr << "Connect requested for app '" << GetAppName() << "' but it is still connected. Please call disconnect first!" << std::endl;
+    }
 }
 
 /**
  * @brief Disconnects the app
  */
-void AppClient::Disconnect() {
-  std::unique_lock<std::recursive_mutex> lock(m_threadMutex);
-  if (m_grpcStream) {
-    if (logDebug)
-      std::cout << "Disconnecting app '" << GetAppName() << '\'' << std::endl;
-    m_stopThreads = true;
-    // StopRobotStateStream();
-    if (m_eventReaderThread.joinable())
-      m_eventReaderThread.join();
-    if (m_actionsWriterThread.joinable())
-      m_actionsWriterThread.join();
-    if (m_grpcStream) {
-      grpc::Status status = m_grpcStream->Finish();
-      if (!status.ok()) {
-        std::cerr << "Stream status not okay";
-        if (!status.error_message().empty())
-          std::cerr << ": " << status.error_message();
-        std::cerr << std::endl;
-      }
+void AppClient::Disconnect()
+{
+    std::unique_lock<std::recursive_mutex> lock(m_threadMutex);
+    if (m_grpcStream)
+    {
+        if (logDebug) std::cout << "Disconnecting app '" << GetAppName() << '\'' << std::endl;
+        m_stopThreads = true;
+        // StopRobotStateStream();
+        if (m_eventReaderThread.joinable()) m_eventReaderThread.join();
+        if (m_actionsWriterThread.joinable()) m_actionsWriterThread.join();
+        if (m_grpcStream)
+        {
+            grpc::Status status = m_grpcStream->Finish();
+            if (!status.ok())
+            {
+                std::cerr << "Stream status not okay";
+                if (!status.error_message().empty()) std::cerr << ": " << status.error_message();
+                std::cerr << std::endl;
+            }
+        }
+        m_grpcStream = nullptr;
+        if (logDebug) std::cout << "App '" << GetAppName() << "' disconnected" << std::endl;
     }
-    m_grpcStream = nullptr;
-    if (logDebug)
-      std::cout << "App '" << GetAppName() << "' disconnected" << std::endl;
-  }
 }
 
 /**
  * @brief Thread method for the event reader. This is used for UI events.
  * @param stream GRPC stream
  */
-void AppClient::EventReaderThread() {
-  try {
-    robotcontrolapp::Event m_Event;
-    while (!m_stopThreads) {
-      if (m_grpcStream->Read(&m_Event)) {
-        // Read UI events and call handler
-        // std::cout << "Event recived (ui updates:" << event.ui_updates_size()
-        // << ")" << std::endl;
-        std::map<std::string, const robotcontrolapp::AppUIElement *> updates;
-        for (int i = 0; i < m_Event.ui_updates_size(); i += 1)
-          updates[m_Event.ui_updates(i).element_name()] =
-              &m_Event.ui_updates(i);
-        if (!updates.empty())
-          UiUpdateHandler(updates);
+void AppClient::EventReaderThread()
+{
+    try
+    {
+        robotcontrolapp::Event m_Event;
+        while (!m_stopThreads)
+        {
+            if (m_grpcStream->Read(&m_Event))
+            {
+                // Read UI events and call handler
+                // std::cout << "Event recived (ui updates:" << event.ui_updates_size()
+                // << ")" << std::endl;
+                std::map<std::string, const robotcontrolapp::AppUIElement*> updates;
+                for (int i = 0; i < m_Event.ui_updates_size(); i += 1) updates[m_Event.ui_updates(i).element_name()] = &m_Event.ui_updates(i);
+                if (!updates.empty()) UiUpdateHandler(updates);
 
-        // Call handler for app function events
-        if (m_Event.has_function())
-          AppFunctionHandler(m_Event.function());
+                // Call handler for app function events
+                if (m_Event.has_function()) AppFunctionHandler(m_Event.function());
 
-        // Handler for disconnect requests
-        if (m_Event.has_disconnect_request()) {
-          std::cout << "Server requested disconnect, reason: "
-                    << m_Event.disconnect_request().reason() << std::endl;
-          m_stopThreads = true;
-          return;
+                // Handler for disconnect requests
+                if (m_Event.has_disconnect_request())
+                {
+                    std::cout << "Server requested disconnect, reason: " << m_Event.disconnect_request().reason() << std::endl;
+                    m_stopThreads = true;
+                    return;
+                }
+            }
+            else
+            {
+                if (logDebug) std::cout << "Read stream closed" << std::endl;
+                m_stopThreads = true;
+            }
         }
-      } else {
-        if (logDebug)
-          std::cout << "Read stream closed" << std::endl;
-        m_stopThreads = true;
-      }
     }
-  } catch (std::exception &ex) {
-    std::cerr << "Exception in EventReaderThread: " << ex.what() << std::endl;
-  }
-  m_stopThreads = true;
+    catch (std::exception& ex)
+    {
+        std::cerr << "Exception in EventReaderThread: " << ex.what() << std::endl;
+    }
+    m_stopThreads = true;
 }
 
 /**
  * @brief Thread method for the actions writer
  * @param stream GRPC stream
  */
-void AppClient::ActionsWriterThread() {
-  try {
-    while (!m_stopThreads) {
-      std::unique_lock<std::mutex> lock(m_actionsMutex);
-      if (!m_actionsQueue.empty()) {
-        // Send actions
-        robotcontrolapp::AppAction actionToSend = m_actionsQueue.front();
-        m_actionsQueue.pop();
-        lock.unlock();
-        actionToSend.set_app_name(GetAppName());
-        if (!m_grpcStream->Write(actionToSend)) {
-          if (logDebug)
-            std::cout << "Write stream closed" << std::endl;
-          m_stopThreads = true;
+void AppClient::ActionsWriterThread()
+{
+    try
+    {
+        while (!m_stopThreads)
+        {
+            std::unique_lock<std::mutex> lock(m_actionsMutex);
+            if (!m_actionsQueue.empty())
+            {
+                // Send actions
+                robotcontrolapp::AppAction actionToSend = m_actionsQueue.front();
+                m_actionsQueue.pop();
+                lock.unlock();
+                actionToSend.set_app_name(GetAppName());
+                if (!m_grpcStream->Write(actionToSend))
+                {
+                    if (logDebug) std::cout << "Write stream closed" << std::endl;
+                    m_stopThreads = true;
+                }
+            }
+            else
+            {
+                lock.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
         }
-      } else {
-        lock.unlock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-      }
+        m_grpcStream->WritesDone();
     }
-    m_grpcStream->WritesDone();
-  } catch (std::exception &ex) {
-    std::cerr << "Exception in ActionsWriterThread: " << ex.what() << std::endl;
-  }
-  m_stopThreads = true;
+    catch (std::exception& ex)
+    {
+        std::cerr << "Exception in ActionsWriterThread: " << ex.what() << std::endl;
+    }
+    m_stopThreads = true;
 }
 
 /**
  * @brief Queues an action to be sent to the robot control
  * @param action app action
  */
-void AppClient::SendAction(const robotcontrolapp::AppAction &action) {
-  if (!m_stopThreads) {
-    std::unique_lock<std::mutex> lock(m_actionsMutex);
-    m_actionsQueue.push(action);
-  }
+void AppClient::SendAction(const robotcontrolapp::AppAction& action)
+{
+    if (!m_stopThreads)
+    {
+        std::unique_lock<std::mutex> lock(m_actionsMutex);
+        m_actionsQueue.push(action);
+    }
 }
 
 /**
@@ -191,64 +203,71 @@ void AppClient::SendAction(const robotcontrolapp::AppAction &action) {
  * @param sysInfo system info
  * @return true if all features are supported
  */
-bool AppClient::CheckCoreVersion(const DataTypes::SystemInfo &sysInfo) {
-  if (sysInfo.versionMajor > VERSION_MAJOR_MIN) {
-    return true;
-  } else if (sysInfo.versionMajor == VERSION_MAJOR_MIN) {
-    if (sysInfo.versionMinor > VERSION_MINOR_MIN) {
-      return true;
-    } else if (sysInfo.versionMinor == VERSION_MINOR_MIN) {
-      if (sysInfo.versionPatch >= VERSION_PATCH_MIN) {
+bool AppClient::CheckCoreVersion(const DataTypes::SystemInfo& sysInfo)
+{
+    if (sysInfo.versionMajor > VERSION_MAJOR_MIN)
+    {
         return true;
-      }
     }
-  }
-  return false;
+    else if (sysInfo.versionMajor == VERSION_MAJOR_MIN)
+    {
+        if (sysInfo.versionMinor > VERSION_MINOR_MIN)
+        {
+            return true;
+        }
+        else if (sysInfo.versionMinor == VERSION_MINOR_MIN)
+        {
+            if (sysInfo.versionPatch >= VERSION_PATCH_MIN)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /**
  * @brief Sends the apps capabilities / API version to the server
  */
-void AppClient::SendCapabilities() {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SendCapabilities()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  grpc::ClientContext context;
-  robotcontrolapp::CapabilitiesRequest request;
-  request.set_app_name(GetAppName());
-  request.set_api_version_major(VERSION_MAJOR_MIN);
-  request.set_api_version_minor(VERSION_MINOR_MIN);
-  request.set_api_version_patch(VERSION_PATCH_MIN);
+    grpc::ClientContext context;
+    robotcontrolapp::CapabilitiesRequest request;
+    request.set_app_name(GetAppName());
+    request.set_api_version_major(VERSION_MAJOR_MIN);
+    request.set_api_version_minor(VERSION_MINOR_MIN);
+    request.set_api_version_patch(VERSION_PATCH_MIN);
 
-  robotcontrolapp::CapabilitiesResponse response;
-  grpc::Status status =
-      m_grpcStub->SetCapabilities(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetCapabilities failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::CapabilitiesResponse response;
+    grpc::Status status = m_grpcStub->SetCapabilities(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetCapabilities failed: " + status.error_message());
+    }
 }
 
 /**
  * @brief Gets the tool center point position and orientation
  * @return TCP matrix
  */
-DataTypes::Matrix44 AppClient::GetTCP() {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::Matrix44 AppClient::GetTCP()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  grpc::ClientContext context;
-  robotcontrolapp::GetTCPRequest request;
-  request.set_app_name(GetAppName());
+    grpc::ClientContext context;
+    robotcontrolapp::GetTCPRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::Matrix44 response;
-  grpc::Status status = m_grpcStub->GetTCP(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request GetTCP failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::Matrix44 response;
+    grpc::Status status = m_grpcStub->GetTCP(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetTCP failed: " + status.error_message());
+    }
 
-  return DataTypes::Matrix44(response);
+    return DataTypes::Matrix44(response);
 }
 
 /**
@@ -257,17 +276,14 @@ DataTypes::Matrix44 AppClient::GetTCP() {
  * @param variableName name of the variable
  * @return NumberVariable or PositionVariable
  */
-std::shared_ptr<DataTypes::ProgramVariable>
-AppClient::GetProgramVariable(const std::string &variableName) {
-  if (variableName.empty())
-    throw std::runtime_error("requested variable with empty name");
+std::shared_ptr<DataTypes::ProgramVariable> AppClient::GetProgramVariable(const std::string& variableName)
+{
+    if (variableName.empty()) throw std::runtime_error("requested variable with empty name");
 
-  std::set<std::string> names{variableName};
-  auto result = GetProgramVariables({variableName});
-  if (result.find(variableName) == result.end())
-    throw std::runtime_error("failed to get variable '" + variableName +
-                             "': variable does not exist");
-  return result[variableName];
+    std::set<std::string> names{variableName};
+    auto result = GetProgramVariables({variableName});
+    if (result.find(variableName) == result.end()) throw std::runtime_error("failed to get variable '" + variableName + "': variable does not exist");
+    return result[variableName];
 }
 
 /**
@@ -276,15 +292,11 @@ AppClient::GetProgramVariable(const std::string &variableName) {
  * @param variableName name of the variable
  * @return number variable
  */
-std::shared_ptr<DataTypes::NumberVariable>
-AppClient::GetNumberVariable(const std::string &variableName) {
-  std::shared_ptr<DataTypes::NumberVariable> variable =
-      std::dynamic_pointer_cast<DataTypes::NumberVariable>(
-          GetProgramVariable(variableName));
-  if (variable == nullptr)
-    throw std::runtime_error("requested variable '" + variableName +
-                             "' is no number variable");
-  return variable;
+std::shared_ptr<DataTypes::NumberVariable> AppClient::GetNumberVariable(const std::string& variableName)
+{
+    std::shared_ptr<DataTypes::NumberVariable> variable = std::dynamic_pointer_cast<DataTypes::NumberVariable>(GetProgramVariable(variableName));
+    if (variable == nullptr) throw std::runtime_error("requested variable '" + variableName + "' is no number variable");
+    return variable;
 }
 
 /**
@@ -293,15 +305,11 @@ AppClient::GetNumberVariable(const std::string &variableName) {
  * @param variableName name of the variable
  * @return position variable
  */
-std::shared_ptr<DataTypes::PositionVariable>
-AppClient::GetPositionVariable(const std::string &variableName) {
-  std::shared_ptr<DataTypes::PositionVariable> variable =
-      std::dynamic_pointer_cast<DataTypes::PositionVariable>(
-          GetProgramVariable(variableName));
-  if (variable == nullptr)
-    throw std::runtime_error("requested variable '" + variableName +
-                             "' is no position variable");
-  return variable;
+std::shared_ptr<DataTypes::PositionVariable> AppClient::GetPositionVariable(const std::string& variableName)
+{
+    std::shared_ptr<DataTypes::PositionVariable> variable = std::dynamic_pointer_cast<DataTypes::PositionVariable>(GetProgramVariable(variableName));
+    if (variable == nullptr) throw std::runtime_error("requested variable '" + variableName + "' is no position variable");
+    return variable;
 }
 
 /**
@@ -309,94 +317,83 @@ AppClient::GetPositionVariable(const std::string &variableName) {
  * @param variableNames set of program variables to request
  * @return map of program variables, key is the variable name
  */
-std::map<std::string, std::shared_ptr<DataTypes::ProgramVariable>>
-AppClient::GetProgramVariables(
-    const std::unordered_set<std::string> &variableNames) {
-  if (!IsConnected())
-    throw NotConnectedException();
+std::map<std::string, std::shared_ptr<DataTypes::ProgramVariable>> AppClient::GetProgramVariables(const std::unordered_set<std::string>& variableNames)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  std::map<std::string, std::shared_ptr<DataTypes::ProgramVariable>> result;
+    std::map<std::string, std::shared_ptr<DataTypes::ProgramVariable>> result;
 
-  grpc::ClientContext context;
-  robotcontrolapp::ProgramVariablesRequest request;
-  request.set_app_name(GetAppName());
-  for (const std::string &varName : variableNames)
-    request.add_variable_names(varName.c_str());
+    grpc::ClientContext context;
+    robotcontrolapp::ProgramVariablesRequest request;
+    request.set_app_name(GetAppName());
+    for (const std::string& varName : variableNames) request.add_variable_names(varName.c_str());
 
-  auto variablesReader = m_grpcStub->GetProgramVariables(&context, request);
-  robotcontrolapp::ProgramVariable response;
+    auto variablesReader = m_grpcStub->GetProgramVariables(&context, request);
+    robotcontrolapp::ProgramVariable response;
 
-  while (variablesReader->Read(&response)) {
-    switch (response.value_case()) {
-    case robotcontrolapp::ProgramVariable::kNumber:
-      result[response.name()] = std::make_shared<DataTypes::NumberVariable>(
-          response.name(), response.number());
-      break;
-    case robotcontrolapp::ProgramVariable::kPosition:
-      switch (response.position().value_case()) {
-      case robotcontrolapp::ProgramVariable_ProgramVariablePosition::
-          kRobotJoints: {
-        std::array<double, DataTypes::PositionVariable::ROBOT_AXES_COUNT>
-            robotAxes = {0};
-        std::array<double, DataTypes::PositionVariable::EXTERNAL_AXES_COUNT>
-            externalAxes = {0};
-        for (int i = 0; i < response.position().robot_joints().joints_size() &&
-                        i < (int)robotAxes.size();
-             i++) {
-          robotAxes[i] = response.position().robot_joints().joints(i);
+    while (variablesReader->Read(&response))
+    {
+        switch (response.value_case())
+        {
+            case robotcontrolapp::ProgramVariable::kNumber:
+                result[response.name()] = std::make_shared<DataTypes::NumberVariable>(response.name(), response.number());
+                break;
+            case robotcontrolapp::ProgramVariable::kPosition:
+                switch (response.position().value_case())
+                {
+                    case robotcontrolapp::ProgramVariable_ProgramVariablePosition::kRobotJoints:
+                    {
+                        std::array<double, DataTypes::PositionVariable::ROBOT_AXES_COUNT> robotAxes = {0};
+                        std::array<double, DataTypes::PositionVariable::EXTERNAL_AXES_COUNT> externalAxes = {0};
+                        for (int i = 0; i < response.position().robot_joints().joints_size() && i < (int)robotAxes.size(); i++)
+                        {
+                            robotAxes[i] = response.position().robot_joints().joints(i);
+                        }
+                        for (int i = 0; i < response.position().external_joints_size() && i < (int)externalAxes.size(); i++)
+                        {
+                            externalAxes[i] = response.position().external_joints(i);
+                        }
+                        result[response.name()] = std::make_shared<DataTypes::PositionVariable>(response.name(), robotAxes, externalAxes);
+                    }
+                    break;
+                    case robotcontrolapp::ProgramVariable_ProgramVariablePosition::kBoth:
+                    {
+                        std::array<double, DataTypes::PositionVariable::ROBOT_AXES_COUNT> robotAxes = {0};
+                        std::array<double, DataTypes::PositionVariable::EXTERNAL_AXES_COUNT> externalAxes = {0};
+                        for (int i = 0; i < response.position().both().robot_joints().joints_size() && i < (int)robotAxes.size(); i++)
+                        {
+                            robotAxes[i] = response.position().both().robot_joints().joints(i);
+                        }
+                        for (int i = 0; i < response.position().external_joints_size() && i < (int)externalAxes.size(); i++)
+                        {
+                            externalAxes[i] = response.position().external_joints(i);
+                        }
+                        DataTypes::Matrix44 cartesian(response.position().both().cartesian());
+                        result[response.name()] = std::make_shared<DataTypes::PositionVariable>(response.name(), cartesian, robotAxes, externalAxes);
+                    }
+                    break;
+                    case robotcontrolapp::ProgramVariable_ProgramVariablePosition::kCartesian:
+                    {
+                        std::array<double, DataTypes::PositionVariable::EXTERNAL_AXES_COUNT> externalAxes = {0};
+                        for (int i = 0; i < response.position().external_joints_size() && i < (int)externalAxes.size(); i++)
+                        {
+                            externalAxes[i] = response.position().external_joints(i);
+                        }
+                        DataTypes::Matrix44 cartesian(response.position().cartesian());
+                        result[response.name()] = std::make_shared<DataTypes::PositionVariable>(response.name(), cartesian, externalAxes);
+                    }
+                    break;
+                    default:
+                        std::cerr << "received unknown variable value type" << std::endl;
+                        break;
+                }
+                break;
+            default:
+                std::cerr << "received unknown variable type" << std::endl;
+                break;
         }
-        for (int i = 0; i < response.position().external_joints_size() &&
-                        i < (int)externalAxes.size();
-             i++) {
-          externalAxes[i] = response.position().external_joints(i);
-        }
-        result[response.name()] = std::make_shared<DataTypes::PositionVariable>(
-            response.name(), robotAxes, externalAxes);
-      } break;
-      case robotcontrolapp::ProgramVariable_ProgramVariablePosition::kBoth: {
-        std::array<double, DataTypes::PositionVariable::ROBOT_AXES_COUNT>
-            robotAxes = {0};
-        std::array<double, DataTypes::PositionVariable::EXTERNAL_AXES_COUNT>
-            externalAxes = {0};
-        for (int i = 0;
-             i < response.position().both().robot_joints().joints_size() &&
-             i < (int)robotAxes.size();
-             i++) {
-          robotAxes[i] = response.position().both().robot_joints().joints(i);
-        }
-        for (int i = 0; i < response.position().external_joints_size() &&
-                        i < (int)externalAxes.size();
-             i++) {
-          externalAxes[i] = response.position().external_joints(i);
-        }
-        DataTypes::Matrix44 cartesian(response.position().both().cartesian());
-        result[response.name()] = std::make_shared<DataTypes::PositionVariable>(
-            response.name(), cartesian, robotAxes, externalAxes);
-      } break;
-      case robotcontrolapp::ProgramVariable_ProgramVariablePosition::
-          kCartesian: {
-        std::array<double, DataTypes::PositionVariable::EXTERNAL_AXES_COUNT>
-            externalAxes = {0};
-        for (int i = 0; i < response.position().external_joints_size() &&
-                        i < (int)externalAxes.size();
-             i++) {
-          externalAxes[i] = response.position().external_joints(i);
-        }
-        DataTypes::Matrix44 cartesian(response.position().cartesian());
-        result[response.name()] = std::make_shared<DataTypes::PositionVariable>(
-            response.name(), cartesian, externalAxes);
-      } break;
-      default:
-        std::cerr << "received unknown variable value type" << std::endl;
-        break;
-      }
-      break;
-    default:
-      std::cerr << "received unknown variable type" << std::endl;
-      break;
     }
-  }
-  return result;
+    return result;
 }
 
 /**
@@ -404,28 +401,25 @@ AppClient::GetProgramVariables(
  * @param name name of the variable
  * @param value value to set
  */
-void AppClient::SetNumberVariable(const std::string &name, double value) {
-  if (!IsConnected())
-    throw NotConnectedException();
-  if (name.empty())
-    throw std::runtime_error("empty variable name");
-  if (name.find(' ') != std::string::npos)
-    throw std::runtime_error("space in variable name");
+void AppClient::SetNumberVariable(const std::string& name, double value)
+{
+    if (!IsConnected()) throw NotConnectedException();
+    if (name.empty()) throw std::runtime_error("empty variable name");
+    if (name.find(' ') != std::string::npos) throw std::runtime_error("space in variable name");
 
-  grpc::ClientContext context;
-  robotcontrolapp::SetProgramVariablesRequest request;
-  request.set_app_name(GetAppName());
-  auto variable = request.add_variables();
-  variable->set_name(name);
-  variable->set_number(value);
+    grpc::ClientContext context;
+    robotcontrolapp::SetProgramVariablesRequest request;
+    request.set_app_name(GetAppName());
+    auto variable = request.add_variables();
+    variable->set_name(name);
+    variable->set_number(value);
 
-  robotcontrolapp::SetProgramVariablesResponse response;
-  grpc::Status status =
-      m_grpcStub->SetProgramVariables(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetProgramVariables failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::SetProgramVariablesResponse response;
+    grpc::Status status = m_grpcStub->SetProgramVariables(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetProgramVariables failed: " + status.error_message());
+    }
 }
 
 /**
@@ -442,40 +436,34 @@ void AppClient::SetNumberVariable(const std::string &name, double value) {
  * @param e2 position of external axis 2 in degrees, mm or user defined units
  * @param e3 position of external axis 3 in degrees, mm or user defined units
  */
-void AppClient::SetPositionVariable(const std::string &name, double a1,
-                                    double a2, double a3, double a4, double a5,
-                                    double a6, double e1, double e2,
-                                    double e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
-  if (name.empty())
-    throw std::runtime_error("empty variable name");
-  if (name.find(' ') != std::string::npos)
-    throw std::runtime_error("space in variable name");
+void AppClient::SetPositionVariable(const std::string& name, double a1, double a2, double a3, double a4, double a5, double a6, double e1, double e2, double e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
+    if (name.empty()) throw std::runtime_error("empty variable name");
+    if (name.find(' ') != std::string::npos) throw std::runtime_error("space in variable name");
 
-  grpc::ClientContext context;
-  robotcontrolapp::SetProgramVariablesRequest request;
-  request.set_app_name(GetAppName());
-  auto variable = request.add_variables();
-  variable->set_name(name);
-  auto position = variable->mutable_position();
-  position->mutable_robot_joints()->add_joints(a1);
-  position->mutable_robot_joints()->add_joints(a2);
-  position->mutable_robot_joints()->add_joints(a3);
-  position->mutable_robot_joints()->add_joints(a4);
-  position->mutable_robot_joints()->add_joints(a5);
-  position->mutable_robot_joints()->add_joints(a6);
-  position->add_external_joints(e1);
-  position->add_external_joints(e2);
-  position->add_external_joints(e3);
+    grpc::ClientContext context;
+    robotcontrolapp::SetProgramVariablesRequest request;
+    request.set_app_name(GetAppName());
+    auto variable = request.add_variables();
+    variable->set_name(name);
+    auto position = variable->mutable_position();
+    position->mutable_robot_joints()->add_joints(a1);
+    position->mutable_robot_joints()->add_joints(a2);
+    position->mutable_robot_joints()->add_joints(a3);
+    position->mutable_robot_joints()->add_joints(a4);
+    position->mutable_robot_joints()->add_joints(a5);
+    position->mutable_robot_joints()->add_joints(a6);
+    position->add_external_joints(e1);
+    position->add_external_joints(e2);
+    position->add_external_joints(e3);
 
-  robotcontrolapp::SetProgramVariablesResponse response;
-  grpc::Status status =
-      m_grpcStub->SetProgramVariables(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetProgramVariables failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::SetProgramVariablesResponse response;
+    grpc::Status status = m_grpcStub->SetProgramVariables(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetProgramVariables failed: " + status.error_message());
+    }
 }
 
 /**
@@ -487,34 +475,29 @@ void AppClient::SetPositionVariable(const std::string &name, double a1,
  * @param e2 position of external axis 2 in degrees, mm or user defined units
  * @param e3 position of external axis 3 in degrees, mm or user defined units
  */
-void AppClient::SetPositionVariable(const std::string &name,
-                                    DataTypes::Matrix44 cartesianPosition,
-                                    double e1, double e2, double e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
-  if (name.empty())
-    throw std::runtime_error("empty variable name");
-  if (name.find(' ') != std::string::npos)
-    throw std::runtime_error("space in variable name");
+void AppClient::SetPositionVariable(const std::string& name, DataTypes::Matrix44 cartesianPosition, double e1, double e2, double e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
+    if (name.empty()) throw std::runtime_error("empty variable name");
+    if (name.find(' ') != std::string::npos) throw std::runtime_error("space in variable name");
 
-  grpc::ClientContext context;
-  robotcontrolapp::SetProgramVariablesRequest request;
-  request.set_app_name(GetAppName());
-  auto variable = request.add_variables();
-  variable->set_name(name);
-  auto position = variable->mutable_position();
-  *position->mutable_cartesian() = cartesianPosition.ToGrpc();
-  position->add_external_joints(e1);
-  position->add_external_joints(e2);
-  position->add_external_joints(e3);
+    grpc::ClientContext context;
+    robotcontrolapp::SetProgramVariablesRequest request;
+    request.set_app_name(GetAppName());
+    auto variable = request.add_variables();
+    variable->set_name(name);
+    auto position = variable->mutable_position();
+    *position->mutable_cartesian() = cartesianPosition.ToGrpc();
+    position->add_external_joints(e1);
+    position->add_external_joints(e2);
+    position->add_external_joints(e3);
 
-  robotcontrolapp::SetProgramVariablesResponse response;
-  grpc::Status status =
-      m_grpcStub->SetProgramVariables(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetProgramVariables failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::SetProgramVariablesResponse response;
+    grpc::Status status = m_grpcStub->SetProgramVariables(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetProgramVariables failed: " + status.error_message());
+    }
 }
 
 /**
@@ -532,102 +515,96 @@ void AppClient::SetPositionVariable(const std::string &name,
  * @param e2 position of external axis 2 in degrees, mm or user defined units
  * @param e3 position of external axis 3 in degrees, mm or user defined units
  */
-void AppClient::SetPositionVariable(const std::string &name,
-                                    DataTypes::Matrix44 cartesianPosition,
-                                    double a1, double a2, double a3, double a4,
-                                    double a5, double a6, double e1, double e2,
-                                    double e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
-  if (name.empty())
-    throw std::runtime_error("empty variable name");
-  if (name.find(' ') != std::string::npos)
-    throw std::runtime_error("space in variable name");
+void AppClient::SetPositionVariable(const std::string& name, DataTypes::Matrix44 cartesianPosition, double a1, double a2, double a3, double a4, double a5,
+                                    double a6, double e1, double e2, double e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
+    if (name.empty()) throw std::runtime_error("empty variable name");
+    if (name.find(' ') != std::string::npos) throw std::runtime_error("space in variable name");
 
-  grpc::ClientContext context;
-  robotcontrolapp::SetProgramVariablesRequest request;
-  request.set_app_name(GetAppName());
-  auto variable = request.add_variables();
-  variable->set_name(name);
-  auto position = variable->mutable_position();
-  *position->mutable_both()->mutable_cartesian() = cartesianPosition.ToGrpc();
-  position->mutable_both()->mutable_robot_joints()->add_joints(a1);
-  position->mutable_both()->mutable_robot_joints()->add_joints(a2);
-  position->mutable_both()->mutable_robot_joints()->add_joints(a3);
-  position->mutable_both()->mutable_robot_joints()->add_joints(a4);
-  position->mutable_both()->mutable_robot_joints()->add_joints(a5);
-  position->mutable_both()->mutable_robot_joints()->add_joints(a6);
-  position->add_external_joints(e1);
-  position->add_external_joints(e2);
-  position->add_external_joints(e3);
+    grpc::ClientContext context;
+    robotcontrolapp::SetProgramVariablesRequest request;
+    request.set_app_name(GetAppName());
+    auto variable = request.add_variables();
+    variable->set_name(name);
+    auto position = variable->mutable_position();
+    *position->mutable_both()->mutable_cartesian() = cartesianPosition.ToGrpc();
+    position->mutable_both()->mutable_robot_joints()->add_joints(a1);
+    position->mutable_both()->mutable_robot_joints()->add_joints(a2);
+    position->mutable_both()->mutable_robot_joints()->add_joints(a3);
+    position->mutable_both()->mutable_robot_joints()->add_joints(a4);
+    position->mutable_both()->mutable_robot_joints()->add_joints(a5);
+    position->mutable_both()->mutable_robot_joints()->add_joints(a6);
+    position->add_external_joints(e1);
+    position->add_external_joints(e2);
+    position->add_external_joints(e3);
 
-  robotcontrolapp::SetProgramVariablesResponse response;
-  grpc::Status status =
-      m_grpcStub->SetProgramVariables(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetProgramVariables failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::SetProgramVariablesResponse response;
+    grpc::Status status = m_grpcStub->SetProgramVariables(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetProgramVariables failed: " + status.error_message());
+    }
 }
 
 /**
  * @brief Resets hardware errors and disables the motors
  */
-void AppClient::ResetErrors() {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::ResetErrors()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ResetErrorsRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::ResetErrorsRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::ResetErrorsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ResetErrors(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ResetErrors failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ResetErrorsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ResetErrors(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ResetErrors failed: " + status.error_message());
+    }
 }
 
 /**
  * @brief Enables the motors. If in an error state you will need to call
  * ResetErrors() first.
  */
-void AppClient::EnableMotors() {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::EnableMotors()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::EnableMotorsRequest request;
-  request.set_app_name(GetAppName());
-  request.set_enable(true);
+    robotcontrolapp::EnableMotorsRequest request;
+    request.set_app_name(GetAppName());
+    request.set_enable(true);
 
-  robotcontrolapp::EnableMotorsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->EnableMotors(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request EnableMotors failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::EnableMotorsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->EnableMotors(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request EnableMotors failed: " + status.error_message());
+    }
 }
 
 /**
  * @brief Disables the motors and IO
  */
-void AppClient::DisableMotors() {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::DisableMotors()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::EnableMotorsRequest request;
-  request.set_app_name(GetAppName());
-  request.set_enable(false);
+    robotcontrolapp::EnableMotorsRequest request;
+    request.set_app_name(GetAppName());
+    request.set_enable(false);
 
-  robotcontrolapp::EnableMotorsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->EnableMotors(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request EnableMotors failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::EnableMotorsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->EnableMotors(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request EnableMotors failed: " + status.error_message());
+    }
 }
 
 /**
@@ -637,22 +614,22 @@ void AppClient::DisableMotors() {
  * @param withReferencingProgram if true: call referencing program after
  * referencing, then reference again
  */
-void AppClient::ReferenceAllJoints(bool withReferencingProgram) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::ReferenceAllJoints(bool withReferencingProgram)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ReferenceJointsRequest request;
-  request.set_app_name(GetAppName());
-  request.set_reference_all(true);
-  request.set_referencing_program(withReferencingProgram);
+    robotcontrolapp::ReferenceJointsRequest request;
+    request.set_app_name(GetAppName());
+    request.set_reference_all(true);
+    request.set_referencing_program(withReferencingProgram);
 
-  robotcontrolapp::ReferenceJointsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ReferenceJoints failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ReferenceJointsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ReferenceJoints failed: " + status.error_message());
+    }
 }
 
 /**
@@ -661,22 +638,22 @@ void AppClient::ReferenceAllJoints(bool withReferencingProgram) {
  * error when successfully referenced, this is no issue, simply re-enable the
  * motors.
  */
-void AppClient::ReferencingProgram() {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::ReferencingProgram()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ReferenceJointsRequest request;
-  request.set_app_name(GetAppName());
-  request.set_reference_all(false);
-  request.set_referencing_program(true);
+    robotcontrolapp::ReferenceJointsRequest request;
+    request.set_app_name(GetAppName());
+    request.set_reference_all(false);
+    request.set_referencing_program(true);
 
-  robotcontrolapp::ReferenceJointsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ReferencingProgram failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ReferenceJointsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ReferencingProgram failed: " + status.error_message());
+    }
 }
 
 /**
@@ -685,23 +662,23 @@ void AppClient::ReferencingProgram() {
  * the motors.
  * @param n joint number 0..6
  */
-void AppClient::ReferenceRobotJoint(unsigned n) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::ReferenceRobotJoint(unsigned n)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ReferenceJointsRequest request;
-  request.set_app_name(GetAppName());
-  request.set_reference_all(false);
-  request.set_referencing_program(false);
-  request.add_reference_robot_joints(n);
+    robotcontrolapp::ReferenceJointsRequest request;
+    request.set_app_name(GetAppName());
+    request.set_reference_all(false);
+    request.set_referencing_program(false);
+    request.add_reference_robot_joints(n);
 
-  robotcontrolapp::ReferenceJointsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ReferenceJoints failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ReferenceJointsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ReferenceJoints failed: " + status.error_message());
+    }
 }
 
 /**
@@ -710,23 +687,23 @@ void AppClient::ReferenceRobotJoint(unsigned n) {
  * re-enable the motors.
  * @param n joint number 0..3
  */
-void AppClient::ReferenceExternalJoint(unsigned n) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::ReferenceExternalJoint(unsigned n)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ReferenceJointsRequest request;
-  request.set_app_name(GetAppName());
-  request.set_reference_all(false);
-  request.set_referencing_program(false);
-  request.add_reference_external_joints(n);
+    robotcontrolapp::ReferenceJointsRequest request;
+    request.set_app_name(GetAppName());
+    request.set_reference_all(false);
+    request.set_referencing_program(false);
+    request.add_reference_external_joints(n);
 
-  robotcontrolapp::ReferenceJointsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ReferenceJoints failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ReferenceJointsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ReferenceJoints failed: " + status.error_message());
+    }
 }
 
 /**
@@ -736,27 +713,24 @@ void AppClient::ReferenceExternalJoint(unsigned n) {
  * @param robotJoints set of robot joint numbers 0..6
  * @param externalJoints set of external joint numbers 0..3
  */
-void AppClient::ReferenceJoints(std::set<int> robotJoints,
-                                std::set<int> externalJoints) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::ReferenceJoints(std::set<int> robotJoints, std::set<int> externalJoints)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ReferenceJointsRequest request;
-  request.set_app_name(GetAppName());
-  request.set_reference_all(false);
-  request.set_referencing_program(false);
-  for (int n : robotJoints)
-    request.add_reference_robot_joints(n);
-  for (int n : externalJoints)
-    request.add_reference_external_joints(n);
+    robotcontrolapp::ReferenceJointsRequest request;
+    request.set_app_name(GetAppName());
+    request.set_reference_all(false);
+    request.set_referencing_program(false);
+    for (int n : robotJoints) request.add_reference_robot_joints(n);
+    for (int n : externalJoints) request.add_reference_external_joints(n);
 
-  robotcontrolapp::ReferenceJointsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ReferenceJoints failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ReferenceJointsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ReferenceJoints(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ReferenceJoints failed: " + status.error_message());
+    }
 }
 
 ///**
@@ -823,22 +797,22 @@ void AppClient::ReferenceJoints(std::set<int> robotJoints,
  * @brief Gets the current state
  * @return robot state
  */
-DataTypes::RobotState AppClient::GetRobotState() {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::RobotState AppClient::GetRobotState()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::RobotStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::RobotStateRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::RobotState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->GetRobotState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request GetRobotState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::RobotState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->GetRobotState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetRobotState failed: " + status.error_message());
+    }
 
-  return DataTypes::RobotState(response);
+    return DataTypes::RobotState(response);
 }
 
 /**
@@ -846,25 +820,24 @@ DataTypes::RobotState AppClient::GetRobotState() {
  * @param number input number (0-63)
  * @param state target state
  */
-void AppClient::SetDigitalInput(unsigned number, bool state) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetDigitalInput(unsigned number, bool state)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::IOStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::IOStateRequest request;
+    request.set_app_name(GetAppName());
 
-  auto din = request.add_dins();
-  din->set_id(number);
-  din->set_state(state ? robotcontrolapp::DIOState::HIGH
-                       : robotcontrolapp::DIOState::LOW);
+    auto din = request.add_dins();
+    din->set_id(number);
+    din->set_state(state ? robotcontrolapp::DIOState::HIGH : robotcontrolapp::DIOState::LOW);
 
-  robotcontrolapp::IOStateResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetIOState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetIOState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::IOStateResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetIOState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetIOState failed: " + status.error_message());
+    }
 }
 
 /**
@@ -872,27 +845,27 @@ void AppClient::SetDigitalInput(unsigned number, bool state) {
  * bundles all changes in one request.
  * @param inputs map of digital inputs to set
  */
-void AppClient::SetDigitalInputs(const std::map<unsigned, bool> &inputs) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetDigitalInputs(const std::map<unsigned, bool>& inputs)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::IOStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::IOStateRequest request;
+    request.set_app_name(GetAppName());
 
-  for (const auto &input : inputs) {
-    auto din = request.add_dins();
-    din->set_id(input.first);
-    din->set_state(input.second ? robotcontrolapp::DIOState::HIGH
-                                : robotcontrolapp::DIOState::LOW);
-  }
+    for (const auto& input : inputs)
+    {
+        auto din = request.add_dins();
+        din->set_id(input.first);
+        din->set_state(input.second ? robotcontrolapp::DIOState::HIGH : robotcontrolapp::DIOState::LOW);
+    }
 
-  robotcontrolapp::IOStateResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetIOState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetIOState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::IOStateResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetIOState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetIOState failed: " + status.error_message());
+    }
 }
 
 /**
@@ -900,25 +873,24 @@ void AppClient::SetDigitalInputs(const std::map<unsigned, bool> &inputs) {
  * @param number output number (0-63)
  * @param state target state
  */
-void AppClient::SetDigitalOutput(unsigned number, bool state) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetDigitalOutput(unsigned number, bool state)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::IOStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::IOStateRequest request;
+    request.set_app_name(GetAppName());
 
-  auto dout = request.add_douts();
-  dout->set_id(number);
-  dout->set_target_state(state ? robotcontrolapp::DIOState::HIGH
-                               : robotcontrolapp::DIOState::LOW);
+    auto dout = request.add_douts();
+    dout->set_id(number);
+    dout->set_target_state(state ? robotcontrolapp::DIOState::HIGH : robotcontrolapp::DIOState::LOW);
 
-  robotcontrolapp::IOStateResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetIOState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetIOState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::IOStateResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetIOState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetIOState failed: " + status.error_message());
+    }
 }
 
 /**
@@ -926,27 +898,27 @@ void AppClient::SetDigitalOutput(unsigned number, bool state) {
  * one request.
  * @param outputs map of digital outputs to set
  */
-void AppClient::SetDigitalOutputs(const std::map<unsigned, bool> &outputs) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetDigitalOutputs(const std::map<unsigned, bool>& outputs)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::IOStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::IOStateRequest request;
+    request.set_app_name(GetAppName());
 
-  for (const auto &output : outputs) {
-    auto dout = request.add_douts();
-    dout->set_id(output.first);
-    dout->set_target_state(output.second ? robotcontrolapp::DIOState::HIGH
-                                         : robotcontrolapp::DIOState::LOW);
-  }
+    for (const auto& output : outputs)
+    {
+        auto dout = request.add_douts();
+        dout->set_id(output.first);
+        dout->set_target_state(output.second ? robotcontrolapp::DIOState::HIGH : robotcontrolapp::DIOState::LOW);
+    }
 
-  robotcontrolapp::IOStateResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetIOState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetIOState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::IOStateResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetIOState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetIOState failed: " + status.error_message());
+    }
 }
 
 /**
@@ -954,25 +926,24 @@ void AppClient::SetDigitalOutputs(const std::map<unsigned, bool> &outputs) {
  * @param number global signal number (0-99)
  * @param state target state
  */
-void AppClient::SetGlobalSignal(unsigned number, bool state) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetGlobalSignal(unsigned number, bool state)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::IOStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::IOStateRequest request;
+    request.set_app_name(GetAppName());
 
-  auto gsig = request.add_gsigs();
-  gsig->set_id(number);
-  gsig->set_target_state(state ? robotcontrolapp::DIOState::HIGH
-                               : robotcontrolapp::DIOState::LOW);
+    auto gsig = request.add_gsigs();
+    gsig->set_id(number);
+    gsig->set_target_state(state ? robotcontrolapp::DIOState::HIGH : robotcontrolapp::DIOState::LOW);
 
-  robotcontrolapp::IOStateResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetIOState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetIOState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::IOStateResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetIOState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetIOState failed: " + status.error_message());
+    }
 }
 
 /**
@@ -980,49 +951,49 @@ void AppClient::SetGlobalSignal(unsigned number, bool state) {
  * request.
  * @param signals map of global signals to set
  */
-void AppClient::SetGlobalSignals(const std::map<unsigned, bool> &signals) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetGlobalSignals(const std::map<unsigned, bool>& signals)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::IOStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::IOStateRequest request;
+    request.set_app_name(GetAppName());
 
-  for (const auto &signal : signals) {
-    auto gsig = request.add_gsigs();
-    gsig->set_id(signal.first);
-    gsig->set_target_state(signal.second ? robotcontrolapp::DIOState::HIGH
-                                         : robotcontrolapp::DIOState::LOW);
-  }
+    for (const auto& signal : signals)
+    {
+        auto gsig = request.add_gsigs();
+        gsig->set_id(signal.first);
+        gsig->set_target_state(signal.second ? robotcontrolapp::DIOState::HIGH : robotcontrolapp::DIOState::LOW);
+    }
 
-  robotcontrolapp::IOStateResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetIOState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetIOState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::IOStateResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetIOState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetIOState failed: " + status.error_message());
+    }
 }
 
 /**
  * @brief Gets the current motion state (program execution etc)
  * @return motion state
  */
-DataTypes::MotionState AppClient::GetMotionState() {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::GetMotionState()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::GetMotionStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::GetMotionStateRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->GetMotionState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request GetMotionState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->GetMotionState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetMotionState failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
@@ -1031,32 +1002,32 @@ DataTypes::MotionState AppClient::GetMotionState() {
  * @return motion state, check request_successful and motionProgram.mainProgram
  * for success
  */
-DataTypes::MotionState
-AppClient::LoadMotionProgram(const std::string &program) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::LoadMotionProgram(const std::string& program)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MotionInterpolatorRequest request;
-  request.set_app_name(GetAppName());
-  request.set_main_program(program);
+    robotcontrolapp::MotionInterpolatorRequest request;
+    request.set_app_name(GetAppName());
+    request.set_main_program(program);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetMotionInterpolator(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetMotionInterpolator failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetMotionInterpolator(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetMotionInterpolator failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
  * @brief Unloads the motion program
  * @return motion state
  */
-DataTypes::MotionState AppClient::UnloadMotionProgram() {
-  return LoadMotionProgram("");
+DataTypes::MotionState AppClient::UnloadMotionProgram()
+{
+    return LoadMotionProgram("");
 }
 
 /**
@@ -1064,32 +1035,32 @@ DataTypes::MotionState AppClient::UnloadMotionProgram() {
  * @param replayMode replay mode to set
  * @return motion state after executing the command
  */
-DataTypes::MotionState
-AppClient::SetMotionProgramRunState(robotcontrolapp::RunState replayMode) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::SetMotionProgramRunState(robotcontrolapp::RunState replayMode)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MotionInterpolatorRequest request;
-  request.set_app_name(GetAppName());
-  request.set_runstate(replayMode);
+    robotcontrolapp::MotionInterpolatorRequest request;
+    request.set_app_name(GetAppName());
+    request.set_runstate(replayMode);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetMotionInterpolator(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetMotionInterpolator failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetMotionInterpolator(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetMotionInterpolator failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
  * @brief Starts or continues the motion program
  * @return motion state
  */
-DataTypes::MotionState AppClient::StartMotionProgram() {
-  return SetMotionProgramRunState(robotcontrolapp::RunState::RUNNING);
+DataTypes::MotionState AppClient::StartMotionProgram()
+{
+    return SetMotionProgramRunState(robotcontrolapp::RunState::RUNNING);
 }
 
 /**
@@ -1127,16 +1098,18 @@ DataTypes::MotionState AppClient::StartMotionProgram() {
  * @brief Pauses the motion program
  * @return motion state
  */
-DataTypes::MotionState AppClient::PauseMotionProgram() {
-  return SetMotionProgramRunState(robotcontrolapp::RunState::PAUSED);
+DataTypes::MotionState AppClient::PauseMotionProgram()
+{
+    return SetMotionProgramRunState(robotcontrolapp::RunState::PAUSED);
 }
 
 /**
  * @brief Stops the motion program
  * @return motion state
  */
-DataTypes::MotionState AppClient::StopMotionProgram() {
-  return SetMotionProgramRunState(robotcontrolapp::RunState::NOT_RUNNING);
+DataTypes::MotionState AppClient::StopMotionProgram()
+{
+    return SetMotionProgramRunState(robotcontrolapp::RunState::NOT_RUNNING);
 }
 
 /**
@@ -1144,47 +1117,49 @@ DataTypes::MotionState AppClient::StopMotionProgram() {
  * @param replayMode replay mode to set
  * @return motion state after executing the command
  */
-DataTypes::MotionState
-AppClient::SetMotionProgramReplayMode(robotcontrolapp::ReplayMode replayMode) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::SetMotionProgramReplayMode(robotcontrolapp::ReplayMode replayMode)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MotionInterpolatorRequest request;
-  request.set_app_name(GetAppName());
-  request.set_replay_mode(replayMode);
+    robotcontrolapp::MotionInterpolatorRequest request;
+    request.set_app_name(GetAppName());
+    request.set_replay_mode(replayMode);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetMotionInterpolator(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetMotionInterpolator failed: " +
-                             status.error_message());
-  }
-  return DataTypes::MotionState(response);
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetMotionInterpolator(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetMotionInterpolator failed: " + status.error_message());
+    }
+    return DataTypes::MotionState(response);
 }
 
 /**
  * @brief Sets the motion program to run once
  * @return motion state
  */
-DataTypes::MotionState AppClient::SetMotionProgramSingle() {
-  return SetMotionProgramReplayMode(robotcontrolapp::ReplayMode::SINGLE);
+DataTypes::MotionState AppClient::SetMotionProgramSingle()
+{
+    return SetMotionProgramReplayMode(robotcontrolapp::ReplayMode::SINGLE);
 }
 
 /**
  * @brief Sets the motion program to repeat
  * @return motion state
  */
-DataTypes::MotionState AppClient::SetMotionProgramRepeat() {
-  return SetMotionProgramReplayMode(robotcontrolapp::ReplayMode::REPEAT);
+DataTypes::MotionState AppClient::SetMotionProgramRepeat()
+{
+    return SetMotionProgramReplayMode(robotcontrolapp::ReplayMode::REPEAT);
 }
 
 /**
  * @brief Sets the motion program to pause after each step
  * @return motion state
  */
-DataTypes::MotionState AppClient::SetMotionProgramStep() {
-  return SetMotionProgramReplayMode(robotcontrolapp::ReplayMode::STEP);
+DataTypes::MotionState AppClient::SetMotionProgramStep()
+{
+    return SetMotionProgramReplayMode(robotcontrolapp::ReplayMode::STEP);
 }
 
 /**
@@ -1193,31 +1168,32 @@ DataTypes::MotionState AppClient::SetMotionProgramStep() {
  * @return motion state, check request_successful and logicProgram.mainProgram
  * for success
  */
-DataTypes::MotionState AppClient::LoadLogicProgram(const std::string &program) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::LoadLogicProgram(const std::string& program)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::LogicInterpolatorRequest request;
-  request.set_app_name(GetAppName());
-  request.set_main_program(program);
+    robotcontrolapp::LogicInterpolatorRequest request;
+    request.set_app_name(GetAppName());
+    request.set_main_program(program);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetLogicInterpolator(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetLogicInterpolator failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetLogicInterpolator(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetLogicInterpolator failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
  * @brief Unloads the logic program
  * @return motion state
  */
-DataTypes::MotionState AppClient::UnloadLogicProgram() {
-  return LoadLogicProgram("");
+DataTypes::MotionState AppClient::UnloadLogicProgram()
+{
+    return LoadLogicProgram("");
 }
 
 /**
@@ -1236,40 +1212,36 @@ DataTypes::MotionState AppClient::UnloadLogicProgram() {
  * @param e3 E3 target in degrees, mm or user defined units
  * @return motion state
  */
-DataTypes::MotionState AppClient::MoveToJoint(float velocityPercent,
-                                              float acceleration, double a1,
-                                              double a2, double a3, double a4,
-                                              double a5, double a6, double e1,
-                                              double e2, double e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::MoveToJoint(float velocityPercent, float acceleration, double a1, double a2, double a3, double a4, double a5, double a6,
+                                              double e1, double e2, double e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MoveToRequest request;
-  request.set_app_name(GetAppName());
-  robotcontrolapp::MoveToRequest_MoveToJoint *joint =
-      new robotcontrolapp::MoveToRequest_MoveToJoint();
-  joint->add_robot_joints(a1);
-  joint->add_robot_joints(a2);
-  joint->add_robot_joints(a3);
-  joint->add_robot_joints(a4);
-  joint->add_robot_joints(a5);
-  joint->add_robot_joints(a6);
-  joint->add_external_joints(e1);
-  joint->add_external_joints(e2);
-  joint->add_external_joints(e3);
-  joint->set_velocity(velocityPercent);
-  joint->set_acceleration(acceleration);
-  request.set_allocated_joint(joint);
+    robotcontrolapp::MoveToRequest request;
+    request.set_app_name(GetAppName());
+    robotcontrolapp::MoveToRequest_MoveToJoint* joint = new robotcontrolapp::MoveToRequest_MoveToJoint();
+    joint->add_robot_joints(a1);
+    joint->add_robot_joints(a2);
+    joint->add_robot_joints(a3);
+    joint->add_robot_joints(a4);
+    joint->add_robot_joints(a5);
+    joint->add_robot_joints(a6);
+    joint->add_external_joints(e1);
+    joint->add_external_joints(e2);
+    joint->add_external_joints(e3);
+    joint->set_velocity(velocityPercent);
+    joint->set_acceleration(acceleration);
+    request.set_allocated_joint(joint);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->MoveTo(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request MoveTo failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->MoveTo(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request MoveTo failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
@@ -1288,38 +1260,36 @@ DataTypes::MotionState AppClient::MoveToJoint(float velocityPercent,
  * @param e3 E3 target in degrees, mm or user defined units
  * @return motion state
  */
-DataTypes::MotionState AppClient::MoveToJointRelative(
-    float velocityPercent, float acceleration, double a1, double a2, double a3,
-    double a4, double a5, double a6, double e1, double e2, double e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::MoveToJointRelative(float velocityPercent, float acceleration, double a1, double a2, double a3, double a4, double a5,
+                                                      double a6, double e1, double e2, double e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MoveToRequest request;
-  request.set_app_name(GetAppName());
-  robotcontrolapp::MoveToRequest_MoveToJoint *joint =
-      new robotcontrolapp::MoveToRequest_MoveToJoint();
-  joint->add_robot_joints(a1);
-  joint->add_robot_joints(a2);
-  joint->add_robot_joints(a3);
-  joint->add_robot_joints(a4);
-  joint->add_robot_joints(a5);
-  joint->add_robot_joints(a6);
-  joint->add_external_joints(e1);
-  joint->add_external_joints(e2);
-  joint->add_external_joints(e3);
-  joint->set_velocity(velocityPercent);
-  joint->set_acceleration(acceleration);
-  request.set_allocated_joint_relative(joint);
+    robotcontrolapp::MoveToRequest request;
+    request.set_app_name(GetAppName());
+    robotcontrolapp::MoveToRequest_MoveToJoint* joint = new robotcontrolapp::MoveToRequest_MoveToJoint();
+    joint->add_robot_joints(a1);
+    joint->add_robot_joints(a2);
+    joint->add_robot_joints(a3);
+    joint->add_robot_joints(a4);
+    joint->add_robot_joints(a5);
+    joint->add_robot_joints(a6);
+    joint->add_external_joints(e1);
+    joint->add_external_joints(e2);
+    joint->add_external_joints(e3);
+    joint->set_velocity(velocityPercent);
+    joint->set_acceleration(acceleration);
+    request.set_allocated_joint_relative(joint);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->MoveTo(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request MoveTo failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->MoveTo(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request MoveTo failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
@@ -1339,42 +1309,37 @@ DataTypes::MotionState AppClient::MoveToJointRelative(
  * @param frame user frame or empty for base frame
  * @return motion state
  */
-DataTypes::MotionState AppClient::MoveToLinear(float velocityMms,
-                                               float acceleration, double x,
-                                               double y, double z, double a,
-                                               double b, double c, double e1,
-                                               double e2, double e3,
-                                               const std::string &frame) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::MoveToLinear(float velocityMms, float acceleration, double x, double y, double z, double a, double b, double c, double e1,
+                                               double e2, double e3, const std::string& frame)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MoveToRequest request;
-  request.set_app_name(GetAppName());
-  robotcontrolapp::MoveToRequest_MoveToCart *cart =
-      new robotcontrolapp::MoveToRequest_MoveToCart();
-  cart->mutable_position()->set_x(x);
-  cart->mutable_position()->set_y(y);
-  cart->mutable_position()->set_z(z);
-  cart->mutable_orientation()->set_x(a);
-  cart->mutable_orientation()->set_y(b);
-  cart->mutable_orientation()->set_z(c);
-  cart->add_external_joints(e1);
-  cart->add_external_joints(e2);
-  cart->add_external_joints(e3);
-  cart->set_velocity(velocityMms);
-  cart->set_acceleration(acceleration);
-  cart->set_frame(frame);
-  request.set_allocated_cart(cart);
+    robotcontrolapp::MoveToRequest request;
+    request.set_app_name(GetAppName());
+    robotcontrolapp::MoveToRequest_MoveToCart* cart = new robotcontrolapp::MoveToRequest_MoveToCart();
+    cart->mutable_position()->set_x(x);
+    cart->mutable_position()->set_y(y);
+    cart->mutable_position()->set_z(z);
+    cart->mutable_orientation()->set_x(a);
+    cart->mutable_orientation()->set_y(b);
+    cart->mutable_orientation()->set_z(c);
+    cart->add_external_joints(e1);
+    cart->add_external_joints(e2);
+    cart->add_external_joints(e3);
+    cart->set_velocity(velocityMms);
+    cart->set_acceleration(acceleration);
+    cart->set_frame(frame);
+    request.set_allocated_cart(cart);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->MoveTo(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request MoveTo failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->MoveTo(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request MoveTo failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
@@ -1394,40 +1359,36 @@ DataTypes::MotionState AppClient::MoveToLinear(float velocityMms,
  * @param frame user frame or empty for base frame
  * @return motion state
  */
-DataTypes::MotionState
-AppClient::MoveToLinearRelativeBase(float velocityMms, float acceleration,
-                                    double x, double y, double z, double a,
-                                    double b, double c, double e1, double e2,
-                                    double e3, const std::string &frame) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::MoveToLinearRelativeBase(float velocityMms, float acceleration, double x, double y, double z, double a, double b, double c,
+                                                           double e1, double e2, double e3, const std::string& frame)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MoveToRequest request;
-  request.set_app_name(GetAppName());
-  robotcontrolapp::MoveToRequest_MoveToCart *cart =
-      request.mutable_cart_relative_base();
-  cart->mutable_position()->set_x(x);
-  cart->mutable_position()->set_y(y);
-  cart->mutable_position()->set_z(z);
-  cart->mutable_orientation()->set_x(a);
-  cart->mutable_orientation()->set_y(b);
-  cart->mutable_orientation()->set_z(c);
-  cart->add_external_joints(e1);
-  cart->add_external_joints(e2);
-  cart->add_external_joints(e3);
-  cart->set_velocity(velocityMms);
-  cart->set_acceleration(acceleration);
-  cart->set_frame(frame);
+    robotcontrolapp::MoveToRequest request;
+    request.set_app_name(GetAppName());
+    robotcontrolapp::MoveToRequest_MoveToCart* cart = request.mutable_cart_relative_base();
+    cart->mutable_position()->set_x(x);
+    cart->mutable_position()->set_y(y);
+    cart->mutable_position()->set_z(z);
+    cart->mutable_orientation()->set_x(a);
+    cart->mutable_orientation()->set_y(b);
+    cart->mutable_orientation()->set_z(c);
+    cart->add_external_joints(e1);
+    cart->add_external_joints(e2);
+    cart->add_external_joints(e3);
+    cart->set_velocity(velocityMms);
+    cart->set_acceleration(acceleration);
+    cart->set_frame(frame);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->MoveTo(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request MoveTo failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->MoveTo(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request MoveTo failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
@@ -1446,60 +1407,58 @@ AppClient::MoveToLinearRelativeBase(float velocityMms, float acceleration,
  * @param e3 E3 target in degrees, mm or user defined units
  * @return motion state
  */
-DataTypes::MotionState AppClient::MoveToLinearRelativeTool(
-    float velocityMms, float acceleration, double x, double y, double z,
-    double a, double b, double c, double e1, double e2, double e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::MoveToLinearRelativeTool(float velocityMms, float acceleration, double x, double y, double z, double a, double b, double c,
+                                                           double e1, double e2, double e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MoveToRequest request;
-  request.set_app_name(GetAppName());
-  robotcontrolapp::MoveToRequest_MoveToCart *cart =
-      request.mutable_cart_relative_tool();
-  cart->mutable_position()->set_x(x);
-  cart->mutable_position()->set_y(y);
-  cart->mutable_position()->set_z(z);
-  cart->mutable_orientation()->set_x(a);
-  cart->mutable_orientation()->set_y(b);
-  cart->mutable_orientation()->set_z(c);
-  cart->add_external_joints(e1);
-  cart->add_external_joints(e2);
-  cart->add_external_joints(e3);
-  cart->set_velocity(velocityMms);
-  cart->set_acceleration(acceleration);
+    robotcontrolapp::MoveToRequest request;
+    request.set_app_name(GetAppName());
+    robotcontrolapp::MoveToRequest_MoveToCart* cart = request.mutable_cart_relative_tool();
+    cart->mutable_position()->set_x(x);
+    cart->mutable_position()->set_y(y);
+    cart->mutable_position()->set_z(z);
+    cart->mutable_orientation()->set_x(a);
+    cart->mutable_orientation()->set_y(b);
+    cart->mutable_orientation()->set_z(c);
+    cart->add_external_joints(e1);
+    cart->add_external_joints(e2);
+    cart->add_external_joints(e3);
+    cart->set_velocity(velocityMms);
+    cart->set_acceleration(acceleration);
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->MoveTo(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request MoveTo failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->MoveTo(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request MoveTo failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
  * @brief Stops a move-to motion
  * @return motion state
  */
-DataTypes::MotionState AppClient::MoveToStop() {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::MotionState AppClient::MoveToStop()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::MoveToRequest request;
-  request.set_app_name(GetAppName());
-  request.set_allocated_stop(new robotcontrolapp::MoveToRequest_MoveToStop());
+    robotcontrolapp::MoveToRequest request;
+    request.set_app_name(GetAppName());
+    request.set_allocated_stop(new robotcontrolapp::MoveToRequest_MoveToStop());
 
-  robotcontrolapp::MotionState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->MoveTo(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request MoveTo failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::MotionState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->MoveTo(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request MoveTo failed: " + status.error_message());
+    }
 
-  return DataTypes::MotionState(response);
+    return DataTypes::MotionState(response);
 }
 
 /**
@@ -1512,29 +1471,26 @@ DataTypes::MotionState AppClient::MoveToStop() {
  * @param e3 velocity of external axis 3 in user-defined units or 0 if not in
  * velocity mode
  */
-void AppClient::GetTargetVelocities(float &e1, float &e2, float &e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::GetTargetVelocities(float& e1, float& e2, float& e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::TargetVelocityRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::TargetVelocityRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::TargetVelocityResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
+    robotcontrolapp::TargetVelocityResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
 
-  if (!status.ok()) {
-    throw std::runtime_error("request SetTargetVelocity failed: " +
-                             status.error_message());
-  }
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetTargetVelocity failed: " + status.error_message());
+    }
 
-  e1 = e2 = e3 = 0;
-  if (response.has_velocity_e1())
-    e1 = response.velocity_e1();
-  if (response.has_velocity_e2())
-    e2 = response.velocity_e2();
-  if (response.has_velocity_e3())
-    e3 = response.velocity_e3();
+    e1 = e2 = e3 = 0;
+    if (response.has_velocity_e1()) e1 = response.velocity_e1();
+    if (response.has_velocity_e2()) e2 = response.velocity_e2();
+    if (response.has_velocity_e3()) e3 = response.velocity_e3();
 }
 
 /**
@@ -1544,24 +1500,24 @@ void AppClient::GetTargetVelocities(float &e1, float &e2, float &e3) {
  * @param e2 target velocity of external axis 2 in user-defined units
  * @param e3 target velocity of external axis 3 in user-defined units
  */
-void AppClient::SetTargetVelocities(float e1, float e2, float e3) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetTargetVelocities(float e1, float e2, float e3)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::TargetVelocityRequest request;
-  request.set_app_name(GetAppName());
-  request.set_velocity_e1(e1);
-  request.set_velocity_e2(e2);
-  request.set_velocity_e3(e3);
+    robotcontrolapp::TargetVelocityRequest request;
+    request.set_app_name(GetAppName());
+    request.set_velocity_e1(e1);
+    request.set_velocity_e2(e2);
+    request.set_velocity_e3(e3);
 
-  robotcontrolapp::TargetVelocityResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
+    robotcontrolapp::TargetVelocityResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
 
-  if (!status.ok()) {
-    throw std::runtime_error("request SetTargetVelocity failed: " +
-                             status.error_message());
-  }
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetTargetVelocity failed: " + status.error_message());
+    }
 }
 
 /**
@@ -1569,27 +1525,27 @@ void AppClient::SetTargetVelocities(float e1, float e2, float e3) {
  * @param vel target velocity in user-defined units
  * @return new target velocity or 0 if not in velocity mode
  */
-float AppClient::SetTargetVelocityE1(float vel) {
-  if (!IsConnected())
-    throw NotConnectedException();
+float AppClient::SetTargetVelocityE1(float vel)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::TargetVelocityRequest request;
-  request.set_app_name(GetAppName());
-  request.set_velocity_e1(vel);
+    robotcontrolapp::TargetVelocityRequest request;
+    request.set_app_name(GetAppName());
+    request.set_velocity_e1(vel);
 
-  robotcontrolapp::TargetVelocityResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
+    robotcontrolapp::TargetVelocityResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
 
-  if (!status.ok()) {
-    throw std::runtime_error("request SetTargetVelocity failed: " +
-                             status.error_message());
-  }
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetTargetVelocity failed: " + status.error_message());
+    }
 
-  if (response.has_velocity_e1())
-    return response.velocity_e1();
-  else
-    return 0;
+    if (response.has_velocity_e1())
+        return response.velocity_e1();
+    else
+        return 0;
 }
 
 /**
@@ -1597,27 +1553,27 @@ float AppClient::SetTargetVelocityE1(float vel) {
  * @param vel target velocity in user-defined units
  * @return new target velocity or 0 if not in velocity mode
  */
-float AppClient::SetTargetVelocityE2(float vel) {
-  if (!IsConnected())
-    throw NotConnectedException();
+float AppClient::SetTargetVelocityE2(float vel)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::TargetVelocityRequest request;
-  request.set_app_name(GetAppName());
-  request.set_velocity_e2(vel);
+    robotcontrolapp::TargetVelocityRequest request;
+    request.set_app_name(GetAppName());
+    request.set_velocity_e2(vel);
 
-  robotcontrolapp::TargetVelocityResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
+    robotcontrolapp::TargetVelocityResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
 
-  if (!status.ok()) {
-    throw std::runtime_error("request SetTargetVelocity failed: " +
-                             status.error_message());
-  }
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetTargetVelocity failed: " + status.error_message());
+    }
 
-  if (response.has_velocity_e2())
-    return response.velocity_e2();
-  else
-    return 0;
+    if (response.has_velocity_e2())
+        return response.velocity_e2();
+    else
+        return 0;
 }
 
 /**
@@ -1625,27 +1581,27 @@ float AppClient::SetTargetVelocityE2(float vel) {
  * @param vel target velocity in user-defined units
  * @return new target velocity or 0 if not in velocity mode
  */
-float AppClient::SetTargetVelocityE3(float vel) {
-  if (!IsConnected())
-    throw NotConnectedException();
+float AppClient::SetTargetVelocityE3(float vel)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::TargetVelocityRequest request;
-  request.set_app_name(GetAppName());
-  request.set_velocity_e3(vel);
+    robotcontrolapp::TargetVelocityRequest request;
+    request.set_app_name(GetAppName());
+    request.set_velocity_e3(vel);
 
-  robotcontrolapp::TargetVelocityResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
+    robotcontrolapp::TargetVelocityResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetTargetVelocity(&context, request, &response);
 
-  if (!status.ok()) {
-    throw std::runtime_error("request SetTargetVelocity failed: " +
-                             status.error_message());
-  }
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetTargetVelocity failed: " + status.error_message());
+    }
 
-  if (response.has_velocity_e3())
-    return response.velocity_e3();
-  else
-    return 0;
+    if (response.has_velocity_e3())
+        return response.velocity_e3();
+    else
+        return 0;
 }
 
 /**
@@ -1654,14 +1610,12 @@ float AppClient::SetTargetVelocityE3(float vel) {
  * @return true if a Move To command is being executed, if a motion program is
  * running or if the position interface is used.
  */
-bool AppClient::IsAutomaticMotion() {
-  auto motionState = GetMotionState();
-  return motionState.motionProgram.runState ==
-             App::DataTypes::MotionState::RunState::RUNNING ||
-         motionState.moveTo.runState ==
-             App::DataTypes::MotionState::RunState::RUNNING ||
-         (motionState.positionInterface.isEnabled &&
-          motionState.positionInterface.isInUse);
+bool AppClient::IsAutomaticMotion()
+{
+    auto motionState = GetMotionState();
+    return motionState.motionProgram.runState == App::DataTypes::MotionState::RunState::RUNNING ||
+           motionState.moveTo.runState == App::DataTypes::MotionState::RunState::RUNNING ||
+           (motionState.positionInterface.isEnabled && motionState.positionInterface.isInUse);
 }
 
 /**
@@ -1674,58 +1628,57 @@ bool AppClient::IsAutomaticMotion() {
  * per cycle.
  * @return true if motion is done, false on timeout
  */
-bool AppClient::WaitMotionDone(std::chrono::steady_clock::duration timeout,
-                               std::chrono::steady_clock::duration precision) {
-  std::chrono::steady_clock::time_point startTime =
-      std::chrono::steady_clock::now();
-  do {
-    if (!IsAutomaticMotion())
-      return true;
-    std::this_thread::sleep_for(precision);
-  } while (std::chrono::steady_clock::now() - startTime > timeout);
-  return false;
+bool AppClient::WaitMotionDone(std::chrono::steady_clock::duration timeout, std::chrono::steady_clock::duration precision)
+{
+    std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+    do {
+        if (!IsAutomaticMotion()) return true;
+        std::this_thread::sleep_for(precision);
+    }
+    while (std::chrono::steady_clock::now() - startTime > timeout);
+    return false;
 }
 
 /**
  * @brief Gets the system information
  */
-DataTypes::SystemInfo AppClient::GetSystemInfo() {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::SystemInfo AppClient::GetSystemInfo()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::SystemInfoRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::SystemInfoRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::SystemInfo response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->GetSystemInfo(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request GetSystemInfo failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::SystemInfo response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->GetSystemInfo(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetSystemInfo failed: " + status.error_message());
+    }
 
-  return DataTypes::SystemInfo(response);
+    return DataTypes::SystemInfo(response);
 }
 
 /**
  * @brief Gets the license information
  */
-DataTypes::LicenseInfo AppClient::GetLicenseInfo() {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::LicenseInfo AppClient::GetLicenseInfo()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::LicenseInfoRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::LicenseInfoRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::LicenseInfoResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->GetLicensedFeatures(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request GetLicensedFeatures failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::LicenseInfoResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->GetLicensedFeatures(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetLicensedFeatures failed: " + status.error_message());
+    }
 
-  return DataTypes::LicenseInfo(response);
+    return DataTypes::LicenseInfo(response);
 }
 
 /**
@@ -1734,12 +1687,13 @@ DataTypes::LicenseInfo AppClient::GetLicenseInfo() {
  * @param id feature ID
  * @return true if the feature is licensed, false if not licensed or expired
  */
-bool AppClient::IsFeatureLicensed(const std::string &id) {
-  DataTypes::LicenseInfo info = GetLicenseInfo();
-  if (info.HasFeature(id))
-    return info.GetFeature(id).isLicensed;
-  else
-    return false;
+bool AppClient::IsFeatureLicensed(const std::string& id)
+{
+    DataTypes::LicenseInfo info = GetLicenseInfo();
+    if (info.HasFeature(id))
+        return info.GetFeature(id).isLicensed;
+    else
+        return false;
 }
 
 /**
@@ -1747,22 +1701,22 @@ bool AppClient::IsFeatureLicensed(const std::string &id) {
  * RobotState.
  * @return velocity multiplier in percent 0.0..100.0
  */
-float AppClient::GetVelocityOverride() {
-  if (!IsConnected())
-    throw NotConnectedException();
+float AppClient::GetVelocityOverride()
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::RobotStateRequest request;
-  request.set_app_name(GetAppName());
+    robotcontrolapp::RobotStateRequest request;
+    request.set_app_name(GetAppName());
 
-  robotcontrolapp::RobotState response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->GetRobotState(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request GetRobotState failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::RobotState response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->GetRobotState(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetRobotState failed: " + status.error_message());
+    }
 
-  return response.velocity_override();
+    return response.velocity_override();
 }
 
 /**
@@ -1770,23 +1724,23 @@ float AppClient::GetVelocityOverride() {
  * @param velocityPercent requested velocity multiplier in percent 0.0..100.0
  * @return actual velocity multiplier in percent 0.0..100.0
  */
-float AppClient::SetVelocityOverride(float velocityPercent) {
-  if (!IsConnected())
-    throw NotConnectedException();
+float AppClient::SetVelocityOverride(float velocityPercent)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::SetVelocityOverrideRequest request;
-  request.set_app_name(GetAppName());
-  request.set_velocity_override(velocityPercent);
+    robotcontrolapp::SetVelocityOverrideRequest request;
+    request.set_app_name(GetAppName());
+    request.set_velocity_override(velocityPercent);
 
-  robotcontrolapp::SetVelocityOverrideResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->SetVelocityOverride(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request SetVelocityOverride failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::SetVelocityOverrideResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetVelocityOverride(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetVelocityOverride failed: " + status.error_message());
+    }
 
-  return response.velocity_override();
+    return response.velocity_override();
 }
 
 /**
@@ -1805,37 +1759,32 @@ float AppClient::SetVelocityOverride(float velocityPercent) {
  * @param resultState the result state is written here. 0 on success, other
  * value on error return true on success
  */
-bool AppClient::TranslateCartToJoint(
-    double x, double y, double z, double a, double b, double c,
-    const std::array<double, 9> &initialJoints,
-    std::array<double, 9> &resultJoints,
-    robotcontrolapp::KinematicState &resultState) {
-  if (!IsConnected())
-    throw NotConnectedException();
+bool AppClient::TranslateCartToJoint(double x, double y, double z, double a, double b, double c, const std::array<double, 9>& initialJoints,
+                                     std::array<double, 9>& resultJoints, robotcontrolapp::KinematicState& resultState)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::CartToJointRequest request;
-  request.set_app_name(GetAppName());
-  for (size_t i = 0; i < initialJoints.size(); i++)
-    request.add_joints(initialJoints[i]);
-  request.mutable_position()->set_x(x);
-  request.mutable_position()->set_y(y);
-  request.mutable_position()->set_z(z);
-  request.mutable_orientation()->set_x(a);
-  request.mutable_orientation()->set_y(b);
-  request.mutable_orientation()->set_z(c);
+    robotcontrolapp::CartToJointRequest request;
+    request.set_app_name(GetAppName());
+    for (size_t i = 0; i < initialJoints.size(); i++) request.add_joints(initialJoints[i]);
+    request.mutable_position()->set_x(x);
+    request.mutable_position()->set_y(y);
+    request.mutable_position()->set_z(z);
+    request.mutable_orientation()->set_x(a);
+    request.mutable_orientation()->set_y(b);
+    request.mutable_orientation()->set_z(c);
 
-  robotcontrolapp::CartToJointResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->TranslateCartToJoint(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request TranslateCartToJoint failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::CartToJointResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->TranslateCartToJoint(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request TranslateCartToJoint failed: " + status.error_message());
+    }
 
-  for (int i = 0; i < response.joints_size(); i++)
-    resultJoints[i] = response.joints(i);
-  resultState = response.kinematicstate();
-  return resultState == robotcontrolapp::KINEMATIC_NORMAL;
+    for (int i = 0; i < response.joints_size(); i++) resultJoints[i] = response.joints(i);
+    resultState = response.kinematicstate();
+    return resultState == robotcontrolapp::KINEMATIC_NORMAL;
 }
 
 /**
@@ -1851,17 +1800,16 @@ bool AppClient::TranslateCartToJoint(
  * value on error
  * @return true on success
  */
-bool AppClient::TranslateJointToCart(
-    const std::array<double, 9> &joints, double &x, double &y, double &z,
-    double &a, double &b, double &c,
-    robotcontrolapp::KinematicState &resultState) {
-  DataTypes::Matrix44 resultPosition;
-  bool result = TranslateJointToCart(joints, resultPosition, resultState);
-  x = resultPosition.GetX();
-  y = resultPosition.GetY();
-  z = resultPosition.GetZ();
-  resultPosition.GetOrientation(a, b, c);
-  return result;
+bool AppClient::TranslateJointToCart(const std::array<double, 9>& joints, double& x, double& y, double& z, double& a, double& b, double& c,
+                                     robotcontrolapp::KinematicState& resultState)
+{
+    DataTypes::Matrix44 resultPosition;
+    bool result = TranslateJointToCart(joints, resultPosition, resultState);
+    x = resultPosition.GetX();
+    y = resultPosition.GetY();
+    z = resultPosition.GetZ();
+    resultPosition.GetOrientation(a, b, c);
+    return result;
 }
 
 /**
@@ -1875,28 +1823,25 @@ bool AppClient::TranslateJointToCart(
  * value on error
  * @return true on success
  */
-bool AppClient::TranslateJointToCart(
-    const std::array<double, 9> &joints, DataTypes::Matrix44 &tcp,
-    robotcontrolapp::KinematicState &resultState) {
-  if (!IsConnected())
-    throw NotConnectedException();
+bool AppClient::TranslateJointToCart(const std::array<double, 9>& joints, DataTypes::Matrix44& tcp, robotcontrolapp::KinematicState& resultState)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::JointToCartRequest request;
-  request.set_app_name(GetAppName());
-  for (size_t i = 0; i < joints.size(); i++)
-    request.add_joints(joints[i]);
+    robotcontrolapp::JointToCartRequest request;
+    request.set_app_name(GetAppName());
+    for (size_t i = 0; i < joints.size(); i++) request.add_joints(joints[i]);
 
-  robotcontrolapp::JointToCartResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->TranslateJointToCart(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request TranslateJointToCart failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::JointToCartResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->TranslateJointToCart(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request TranslateJointToCart failed: " + status.error_message());
+    }
 
-  tcp = response.position();
-  resultState = response.kinematicstate();
-  return resultState == robotcontrolapp::KINEMATIC_NORMAL;
+    tcp = response.position();
+    resultState = response.kinematicstate();
+    return resultState == robotcontrolapp::KINEMATIC_NORMAL;
 }
 
 /**
@@ -1907,62 +1852,66 @@ bool AppClient::TranslateJointToCart(
  * @param error if an error occurs the reason is written here
  * @return true on success
  */
-bool AppClient::UploadFile(const std::string &sourceFile,
-                           const std::string targetFile, std::string &error) {
-  if (!IsConnected())
-    throw NotConnectedException();
+bool AppClient::UploadFile(const std::string& sourceFile, const std::string targetFile, std::string& error)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  std::ifstream file(sourceFile, std::ios::binary);
-  if (!file.good()) {
-    error = "could not open file for reading";
-    return false;
-  }
-
-  grpc::ClientContext context;
-  robotcontrolapp::UploadFileResponse response;
-  auto writer = m_grpcStub->UploadFile(&context, &response);
-
-  while (file.good()) {
-    static const size_t CHUNK_SIZE = 8 * 1024;
-    char buffer[CHUNK_SIZE] = {0};
-    file.read(buffer, CHUNK_SIZE);
-    size_t readCount = file.gcount();
-    if (file.bad()) {
-      error = "could not read from file";
-      writer->WritesDone();
-      writer->Finish();
-      return false;
+    std::ifstream file(sourceFile, std::ios::binary);
+    if (!file.good())
+    {
+        error = "could not open file for reading";
+        return false;
     }
 
-    robotcontrolapp::UploadFileRequest request;
-    request.set_app_name(GetAppName());
-    request.set_filename(targetFile);
-    request.set_binary_mode(true);
-    std::string dataStr;
-    if (readCount > 0)
-      dataStr = std::string(buffer, buffer + readCount);
+    grpc::ClientContext context;
+    robotcontrolapp::UploadFileResponse response;
+    auto writer = m_grpcStub->UploadFile(&context, &response);
 
-    request.set_data(dataStr);
-    if (!writer->Write(request)) {
-      error = "upload failed";
-      writer->WritesDone();
-      writer->Finish();
-      return false;
+    while (file.good())
+    {
+        static const size_t CHUNK_SIZE = 8 * 1024;
+        char buffer[CHUNK_SIZE] = {0};
+        file.read(buffer, CHUNK_SIZE);
+        size_t readCount = file.gcount();
+        if (file.bad())
+        {
+            error = "could not read from file";
+            writer->WritesDone();
+            writer->Finish();
+            return false;
+        }
+
+        robotcontrolapp::UploadFileRequest request;
+        request.set_app_name(GetAppName());
+        request.set_filename(targetFile);
+        request.set_binary_mode(true);
+        std::string dataStr;
+        if (readCount > 0) dataStr = std::string(buffer, buffer + readCount);
+
+        request.set_data(dataStr);
+        if (!writer->Write(request))
+        {
+            error = "upload failed";
+            writer->WritesDone();
+            writer->Finish();
+            return false;
+        }
+
+        if (readCount == 0) break;
     }
 
-    if (readCount == 0)
-      break;
-  }
-
-  writer->WritesDone();
-  grpc::Status status = writer->Finish();
-  if (status.ok()) {
-    error = response.error();
-    return response.success();
-  } else {
-    error = "GRPC request failed";
-    return false;
-  }
+    writer->WritesDone();
+    grpc::Status status = writer->Finish();
+    if (status.ok())
+    {
+        error = response.error();
+        return response.success();
+    }
+    else
+    {
+        error = "GRPC request failed";
+        return false;
+    }
 }
 
 /**
@@ -1974,55 +1923,61 @@ bool AppClient::UploadFile(const std::string &sourceFile,
  * @param error if an error occurs the reason is written here
  * @return true on success
  */
-bool AppClient::UploadFile(uint8_t *data, size_t length,
-                           const std::string targetFile, std::string &error) {
-  if (!IsConnected())
-    throw NotConnectedException();
-  if (data == nullptr && length > 0)
-    throw std::runtime_error("data is null");
+bool AppClient::UploadFile(uint8_t* data, size_t length, const std::string targetFile, std::string& error)
+{
+    if (!IsConnected()) throw NotConnectedException();
+    if (data == nullptr && length > 0) throw std::runtime_error("data is null");
 
-  grpc::ClientContext context;
-  robotcontrolapp::UploadFileResponse response;
-  auto writer = m_grpcStub->UploadFile(&context, &response);
+    grpc::ClientContext context;
+    robotcontrolapp::UploadFileResponse response;
+    auto writer = m_grpcStub->UploadFile(&context, &response);
 
-  if (length == 0) {
-    robotcontrolapp::UploadFileRequest request;
-    request.set_app_name(GetAppName());
-    request.set_filename(targetFile);
-    request.set_binary_mode(true);
-    request.set_data("");
-    if (!writer->Write(request)) {
-      error = "upload failed";
-      return false;
+    if (length == 0)
+    {
+        robotcontrolapp::UploadFileRequest request;
+        request.set_app_name(GetAppName());
+        request.set_filename(targetFile);
+        request.set_binary_mode(true);
+        request.set_data("");
+        if (!writer->Write(request))
+        {
+            error = "upload failed";
+            return false;
+        }
     }
-  } else {
-    static const size_t CHUNK_SIZE = 8 * 1024;
-    for (size_t i = 0; i < length; i += CHUNK_SIZE) {
-      robotcontrolapp::UploadFileRequest request;
-      request.set_app_name(GetAppName());
-      request.set_filename(targetFile);
-      request.set_binary_mode(true);
-      size_t currentChunkSize = std::min(CHUNK_SIZE, (length - i));
-      std::string dataStr;
-      if (data != nullptr)
-        dataStr = std::string(data + i, data + i + currentChunkSize);
-      request.set_data(dataStr);
-      if (!writer->Write(request)) {
-        error = "upload failed";
+    else
+    {
+        static const size_t CHUNK_SIZE = 8 * 1024;
+        for (size_t i = 0; i < length; i += CHUNK_SIZE)
+        {
+            robotcontrolapp::UploadFileRequest request;
+            request.set_app_name(GetAppName());
+            request.set_filename(targetFile);
+            request.set_binary_mode(true);
+            size_t currentChunkSize = std::min(CHUNK_SIZE, (length - i));
+            std::string dataStr;
+            if (data != nullptr) dataStr = std::string(data + i, data + i + currentChunkSize);
+            request.set_data(dataStr);
+            if (!writer->Write(request))
+            {
+                error = "upload failed";
+                return false;
+            }
+        }
+    }
+
+    writer->WritesDone();
+    grpc::Status status = writer->Finish();
+    if (status.ok())
+    {
+        error = response.error();
+        return response.success();
+    }
+    else
+    {
+        error = "GRPC request failed";
         return false;
-      }
     }
-  }
-
-  writer->WritesDone();
-  grpc::Status status = writer->Finish();
-  if (status.ok()) {
-    error = response.error();
-    return response.success();
-  } else {
-    error = "GRPC request failed";
-    return false;
-  }
 }
 
 /**
@@ -2033,40 +1988,45 @@ bool AppClient::UploadFile(uint8_t *data, size_t length,
  * @param error if an error occurs the reason is written here
  * @return true on success
  */
-bool AppClient::DownloadFile(const std::string &sourceFile,
-                             const std::string targetFile, std::string &error) {
-  if (!IsConnected())
-    throw NotConnectedException();
+bool AppClient::DownloadFile(const std::string& sourceFile, const std::string targetFile, std::string& error)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  grpc::ClientContext context;
-  robotcontrolapp::DownloadFileRequest request;
-  request.set_app_name(GetAppName());
-  request.set_filename(sourceFile);
+    grpc::ClientContext context;
+    robotcontrolapp::DownloadFileRequest request;
+    request.set_app_name(GetAppName());
+    request.set_filename(sourceFile);
 
-  std::ofstream file(targetFile, std::ios::trunc | std::ios::binary);
-  if (!file.good()) {
-    error = "could not open file for writing";
-    return false;
-  }
-
-  auto reader = m_grpcStub->DownloadFile(&context, request);
-  robotcontrolapp::DownloadFileResponse response;
-
-  while (reader->Read(&response)) {
-    if (response.success()) {
-      file.write(response.data().data(), response.data().size());
-      if (file.bad()) {
-        reader->Finish();
-        error = "could not write data";
+    std::ofstream file(targetFile, std::ios::trunc | std::ios::binary);
+    if (!file.good())
+    {
+        error = "could not open file for writing";
         return false;
-      }
-    } else {
-      reader->Finish();
-      error = response.error();
-      return false;
     }
-  }
-  return true;
+
+    auto reader = m_grpcStub->DownloadFile(&context, request);
+    robotcontrolapp::DownloadFileResponse response;
+
+    while (reader->Read(&response))
+    {
+        if (response.success())
+        {
+            file.write(response.data().data(), response.data().size());
+            if (file.bad())
+            {
+                reader->Finish();
+                error = "could not write data";
+                return false;
+            }
+        }
+        else
+        {
+            reader->Finish();
+            error = response.error();
+            return false;
+        }
+    }
+    return true;
 }
 
 /**
@@ -2078,30 +2038,33 @@ bool AppClient::DownloadFile(const std::string &sourceFile,
  * @param error if an error occurs the reason is written here
  * @return true on success
  */
-bool AppClient::DownloadFile(const std::string &sourceFile,
-                             std::vector<uint8_t> &data, std::string &error) {
-  if (!IsConnected())
-    throw NotConnectedException();
+bool AppClient::DownloadFile(const std::string& sourceFile, std::vector<uint8_t>& data, std::string& error)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  grpc::ClientContext context;
-  robotcontrolapp::DownloadFileRequest request;
-  request.set_app_name(GetAppName());
-  request.set_filename(sourceFile);
+    grpc::ClientContext context;
+    robotcontrolapp::DownloadFileRequest request;
+    request.set_app_name(GetAppName());
+    request.set_filename(sourceFile);
 
-  auto reader = m_grpcStub->DownloadFile(&context, request);
-  robotcontrolapp::DownloadFileResponse response;
-  data.clear();
+    auto reader = m_grpcStub->DownloadFile(&context, request);
+    robotcontrolapp::DownloadFileResponse response;
+    data.clear();
 
-  while (reader->Read(&response)) {
-    if (response.success()) {
-      data.insert(data.end(), response.data().begin(), response.data().end());
-    } else {
-      reader->Finish();
-      error = response.error();
-      return false;
+    while (reader->Read(&response))
+    {
+        if (response.success())
+        {
+            data.insert(data.end(), response.data().begin(), response.data().end());
+        }
+        else
+        {
+            reader->Finish();
+            error = response.error();
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 }
 
 /**
@@ -2110,30 +2073,35 @@ bool AppClient::DownloadFile(const std::string &sourceFile,
  * @param error if an error occurs the reason is written here
  * @return true on success
  */
-bool AppClient::RemoveFile(const std::string &file, std::string &error) {
-  if (!IsConnected())
-    throw NotConnectedException();
+bool AppClient::RemoveFile(const std::string& file, std::string& error)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  grpc::ClientContext context;
-  robotcontrolapp::RemoveFilesRequest request;
-  request.set_app_name(GetAppName());
-  request.add_files(file.c_str());
-  robotcontrolapp::RemoveFilesResponse response;
-  auto status = m_grpcStub->RemoveFiles(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request RemoveFiles failed: " +
-                             status.error_message());
-  }
+    grpc::ClientContext context;
+    robotcontrolapp::RemoveFilesRequest request;
+    request.set_app_name(GetAppName());
+    request.add_files(file.c_str());
+    robotcontrolapp::RemoveFilesResponse response;
+    auto status = m_grpcStub->RemoveFiles(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request RemoveFiles failed: " + status.error_message());
+    }
 
-  if (response.results_size() > 0 && !response.results(0).success()) {
-    error = response.results(0).error();
-    return false;
-  } else if (response.success()) {
-    return true;
-  } else {
-    error = "unknown error";
-    return false;
-  }
+    if (response.results_size() > 0 && !response.results(0).success())
+    {
+        error = response.results(0).error();
+        return false;
+    }
+    else if (response.success())
+    {
+        return true;
+    }
+    else
+    {
+        error = "unknown error";
+        return false;
+    }
 }
 
 /**
@@ -2142,30 +2110,30 @@ bool AppClient::RemoveFile(const std::string &file, std::string &error) {
  * directory of the robot control
  * @return Description of the directory's content
  */
-AppClient::DirectoryContent AppClient::ListFiles(const std::string &directory) {
-  if (!IsConnected())
-    throw NotConnectedException();
+AppClient::DirectoryContent AppClient::ListFiles(const std::string& directory)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ListFilesRequest request;
-  request.set_app_name(GetAppName());
-  request.set_path(directory);
-  robotcontrolapp::ListFilesResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ListFiles(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ListFiles failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ListFilesRequest request;
+    request.set_app_name(GetAppName());
+    request.set_path(directory);
+    robotcontrolapp::ListFilesResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ListFiles(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ListFiles failed: " + status.error_message());
+    }
 
-  AppClient::DirectoryContent result;
-  result.success = response.success();
-  if (response.has_error())
-    result.errorMessage = response.error();
-  result.entries.reserve(response.entries_size());
-  for (const auto &entry : response.entries()) {
-    result.entries.push_back({entry.name(), entry.type()});
-  }
-  return result;
+    AppClient::DirectoryContent result;
+    result.success = response.success();
+    if (response.has_error()) result.errorMessage = response.error();
+    result.entries.reserve(response.entries_size());
+    for (const auto& entry : response.entries())
+    {
+        result.entries.push_back({entry.name(), entry.type()});
+    }
+    return result;
 }
 
 /**
@@ -2174,22 +2142,22 @@ AppClient::DirectoryContent AppClient::ListFiles(const std::string &directory) {
  * variables #parts-good and #parts-bad) to 0
  * @return Statistics data
  */
-DataTypes::Statistics AppClient::GetStatistics(bool resetPartsCounter) {
-  if (!IsConnected())
-    throw NotConnectedException();
+DataTypes::Statistics AppClient::GetStatistics(bool resetPartsCounter)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::StatisticsRequest request;
-  request.set_reset_parts_counter(resetPartsCounter);
-  request.set_app_name(GetAppName());
-  robotcontrolapp::StatisticsResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->GetStatistics(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request GetStatistics failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::StatisticsRequest request;
+    request.set_reset_parts_counter(resetPartsCounter);
+    request.set_app_name(GetAppName());
+    robotcontrolapp::StatisticsResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->GetStatistics(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetStatistics failed: " + status.error_message());
+    }
 
-  return DataTypes::Statistics(response);
+    return DataTypes::Statistics(response);
 }
 
 /**
@@ -2197,13 +2165,13 @@ DataTypes::Statistics AppClient::GetStatistics(bool resetPartsCounter) {
  * This allows the robot program to continue with the next command.
  * @param callId function call ID from the function call request
  */
-void AppClient::SendFunctionDone(int64_t callId) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SendFunctionDone(int64_t callId)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction response;
-  response.add_done_functions(callId);
-  SendAction(response);
+    robotcontrolapp::AppAction response;
+    response.add_done_functions(callId);
+    SendAction(response);
 }
 
 /**
@@ -2212,28 +2180,29 @@ void AppClient::SendFunctionDone(int64_t callId) {
  * @param callId function call ID from the function call request
  * @param reason error message
  */
-void AppClient::SendFunctionFailed(int64_t callId, const std::string &reason) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SendFunctionFailed(int64_t callId, const std::string& reason)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction response;
-  robotcontrolapp::FailedFunction &failedFunction =
-      *response.add_failed_functions();
-  failedFunction.set_call_id(callId);
-  failedFunction.set_reason(reason);
-  SendAction(response);
+    robotcontrolapp::AppAction response;
+    robotcontrolapp::FailedFunction& failedFunction = *response.add_failed_functions();
+    failedFunction.set_call_id(callId);
+    failedFunction.set_reason(reason);
+    SendAction(response);
 }
 
 /**
  * @brief Send queued UI updates. Queueing benefits performance by sending all
  * updates in a single message.
  */
-void AppClient::SendQueuedUIUpdates() {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  if (m_queuedUIUpdates.ui_changes_size() > 0) {
-    SendAction(m_queuedUIUpdates);
-  }
-  m_queuedUIUpdates.Clear();
+void AppClient::SendQueuedUIUpdates()
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    if (m_queuedUIUpdates.ui_changes_size() > 0)
+    {
+        SendAction(m_queuedUIUpdates);
+    }
+    m_queuedUIUpdates.Clear();
 }
 
 /**
@@ -2242,13 +2211,13 @@ void AppClient::SendQueuedUIUpdates() {
  * after start up
  * @param elementName ID of the requested UI element
  */
-void AppClient::RequestUIElementState(const std::string &elementName) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::RequestUIElementState(const std::string& elementName)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  request.add_request_ui_state(elementName);
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    request.add_request_ui_state(elementName);
+    SendAction(request);
 }
 
 /**
@@ -2257,9 +2226,10 @@ void AppClient::RequestUIElementState(const std::string &elementName) {
  * changed after start up
  * @param elementName ID of the requested UI element
  */
-void AppClient::QueueRequestUIElementState(const std::string &elementName) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  m_queuedUIUpdates.add_request_ui_state(elementName);
+void AppClient::QueueRequestUIElementState(const std::string& elementName)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    m_queuedUIUpdates.add_request_ui_state(elementName);
 }
 
 /**
@@ -2268,15 +2238,13 @@ void AppClient::QueueRequestUIElementState(const std::string &elementName) {
  * changed after start up
  * @param elementNames set of UI element names
  */
-void AppClient::RequestUIElementStates(
-    const std::unordered_set<std::string> &elementNames) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::RequestUIElementStates(const std::unordered_set<std::string>& elementNames)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  for (const std::string &name : elementNames)
-    request.add_request_ui_state(name);
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    for (const std::string& name : elementNames) request.add_request_ui_state(name);
+    SendAction(request);
 }
 
 /**
@@ -2285,11 +2253,10 @@ void AppClient::RequestUIElementStates(
  * and if it was changed after start up
  * @param elementNames set of UI element names
  */
-void AppClient::QueueRequestUIElementStates(
-    const std::unordered_set<std::string> &elementNames) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  for (const std::string &name : elementNames)
-    m_queuedUIUpdates.add_request_ui_state(name);
+void AppClient::QueueRequestUIElementStates(const std::unordered_set<std::string>& elementNames)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    for (const std::string& name : elementNames) m_queuedUIUpdates.add_request_ui_state(name);
 }
 
 /**
@@ -2297,15 +2264,15 @@ void AppClient::QueueRequestUIElementStates(
  * @param elementName ID of the UI element
  * @param visible true to set the element visible or false to hide it
  */
-void AppClient::SetUIVisibility(const std::string &elementName, bool visible) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetUIVisibility(const std::string& elementName, bool visible)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  robotcontrolapp::AppUIElement &uiElement = *request.add_ui_changes();
-  uiElement.set_element_name(elementName);
-  uiElement.set_is_visible(visible);
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    robotcontrolapp::AppUIElement& uiElement = *request.add_ui_changes();
+    uiElement.set_element_name(elementName);
+    uiElement.set_is_visible(visible);
+    SendAction(request);
 }
 
 /**
@@ -2313,15 +2280,14 @@ void AppClient::SetUIVisibility(const std::string &elementName, bool visible) {
  * @param elementName ID of the UI element
  * @param visible true to set the element visible or false to hide it
  */
-void AppClient::QueueSetUIVisibility(const std::string &elementName,
-                                     bool visible) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  robotcontrolapp::AppUIElement &uiElement =
-      *m_queuedUIUpdates.add_ui_changes();
-  lock.unlock();
+void AppClient::QueueSetUIVisibility(const std::string& elementName, bool visible)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    robotcontrolapp::AppUIElement& uiElement = *m_queuedUIUpdates.add_ui_changes();
+    lock.unlock();
 
-  uiElement.set_element_name(elementName);
-  uiElement.set_is_visible(visible);
+    uiElement.set_element_name(elementName);
+    uiElement.set_is_visible(visible);
 }
 
 /**
@@ -2329,18 +2295,18 @@ void AppClient::QueueSetUIVisibility(const std::string &elementName,
  * @param elements list of elements and visibility (key is the element name,
  * value is the visibility state)
  */
-void AppClient::SetUIVisibility(
-    const std::unordered_map<std::string, bool> &elements) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetUIVisibility(const std::unordered_map<std::string, bool>& elements)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  for (auto &element : elements) {
-    robotcontrolapp::AppUIElement &uiElement = *request.add_ui_changes();
-    uiElement.set_element_name(element.first);
-    uiElement.set_is_visible(element.second);
-  }
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    for (auto& element : elements)
+    {
+        robotcontrolapp::AppUIElement& uiElement = *request.add_ui_changes();
+        uiElement.set_element_name(element.first);
+        uiElement.set_is_visible(element.second);
+    }
+    SendAction(request);
 }
 
 /**
@@ -2348,15 +2314,15 @@ void AppClient::SetUIVisibility(
  * @param elements list of elements and visibility (key is the element name,
  * value is the visibility state)
  */
-void AppClient::QueueSetUIVisibility(
-    const std::unordered_map<std::string, bool> &elements) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  for (auto &element : elements) {
-    robotcontrolapp::AppUIElement &uiElement =
-        *m_queuedUIUpdates.add_ui_changes();
-    uiElement.set_element_name(element.first);
-    uiElement.set_is_visible(element.second);
-  }
+void AppClient::QueueSetUIVisibility(const std::unordered_map<std::string, bool>& elements)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    for (auto& element : elements)
+    {
+        robotcontrolapp::AppUIElement& uiElement = *m_queuedUIUpdates.add_ui_changes();
+        uiElement.set_element_name(element.first);
+        uiElement.set_is_visible(element.second);
+    }
 }
 
 /**
@@ -2364,17 +2330,15 @@ void AppClient::QueueSetUIVisibility(
  * @param elementName ID of the UI element
  * @param isChecked if true the check box will be checked
  */
-void AppClient::SetCheckboxState(const std::string &elementName,
-                                 bool isChecked) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetCheckboxState(const std::string& elementName, bool isChecked)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  robotcontrolapp::AppUIElement &uiElement = *request.add_ui_changes();
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->set_checkbox_state(
-      isChecked ? robotcontrolapp::CHECKED : robotcontrolapp::UNCHECKED);
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    robotcontrolapp::AppUIElement& uiElement = *request.add_ui_changes();
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->set_checkbox_state(isChecked ? robotcontrolapp::CHECKED : robotcontrolapp::UNCHECKED);
+    SendAction(request);
 }
 
 /**
@@ -2382,16 +2346,14 @@ void AppClient::SetCheckboxState(const std::string &elementName,
  * @param elementName ID of the UI element
  * @param isChecked if true the check box will be checked
  */
-void AppClient::QueueSetCheckboxState(const std::string &elementName,
-                                      bool isChecked) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  robotcontrolapp::AppUIElement &uiElement =
-      *m_queuedUIUpdates.add_ui_changes();
-  lock.unlock();
+void AppClient::QueueSetCheckboxState(const std::string& elementName, bool isChecked)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    robotcontrolapp::AppUIElement& uiElement = *m_queuedUIUpdates.add_ui_changes();
+    lock.unlock();
 
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->set_checkbox_state(
-      isChecked ? robotcontrolapp::CHECKED : robotcontrolapp::UNCHECKED);
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->set_checkbox_state(isChecked ? robotcontrolapp::CHECKED : robotcontrolapp::UNCHECKED);
 }
 
 /**
@@ -2399,12 +2361,11 @@ void AppClient::QueueSetCheckboxState(const std::string &elementName,
  * @param elementName ID of the UI element
  * @param selectedValue selected value
  */
-void AppClient::SetDropDownState(const std::string &elementName,
-                                 const std::string &selectedValue) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetDropDownState(const std::string& elementName, const std::string& selectedValue)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  SetText(elementName, selectedValue);
+    SetText(elementName, selectedValue);
 }
 
 /**
@@ -2412,9 +2373,9 @@ void AppClient::SetDropDownState(const std::string &elementName,
  * @param elementName ID of the UI element
  * @param selectedValue selected value, must be a defined selectable entry
  */
-void AppClient::QueueSetDropDownState(const std::string &elementName,
-                                      const std::string &selectedValue) {
-  QueueSetText(elementName, selectedValue);
+void AppClient::QueueSetDropDownState(const std::string& elementName, const std::string& selectedValue)
+{
+    QueueSetText(elementName, selectedValue);
 }
 
 /**
@@ -2425,21 +2386,19 @@ void AppClient::QueueSetDropDownState(const std::string &elementName,
  * @param selectableEntries selectable values. If empty the current list will be
  * kept.
  */
-void AppClient::SetDropDownState(
-    const std::string &elementName, const std::string &selectedValue,
-    const std::list<std::string> &selectableEntries) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetDropDownState(const std::string& elementName, const std::string& selectedValue, const std::list<std::string>& selectableEntries)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  robotcontrolapp::AppUIElement &uiElement = *request.add_ui_changes();
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->mutable_dropdown_state()->set_selected_option(
-      selectedValue);
-  for (const std::string &entry : selectableEntries) {
-    *uiElement.mutable_state()->mutable_dropdown_state()->add_options() = entry;
-  }
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    robotcontrolapp::AppUIElement& uiElement = *request.add_ui_changes();
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_dropdown_state()->set_selected_option(selectedValue);
+    for (const std::string& entry : selectableEntries)
+    {
+        *uiElement.mutable_state()->mutable_dropdown_state()->add_options() = entry;
+    }
+    SendAction(request);
 }
 
 /**
@@ -2449,20 +2408,18 @@ void AppClient::SetDropDownState(
  * @param selectedValue selected value, must be a defined selectable entry
  * @param selectableEntries selectable values
  */
-void AppClient::QueueSetDropDownState(
-    const std::string &elementName, const std::string &selectedValue,
-    const std::list<std::string> &selectableEntries) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  robotcontrolapp::AppUIElement &uiElement =
-      *m_queuedUIUpdates.add_ui_changes();
-  lock.unlock();
+void AppClient::QueueSetDropDownState(const std::string& elementName, const std::string& selectedValue, const std::list<std::string>& selectableEntries)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    robotcontrolapp::AppUIElement& uiElement = *m_queuedUIUpdates.add_ui_changes();
+    lock.unlock();
 
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->mutable_dropdown_state()->set_selected_option(
-      selectedValue);
-  for (const std::string &entry : selectableEntries) {
-    *uiElement.mutable_state()->mutable_dropdown_state()->add_options() = entry;
-  }
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_dropdown_state()->set_selected_option(selectedValue);
+    for (const std::string& entry : selectableEntries)
+    {
+        *uiElement.mutable_state()->mutable_dropdown_state()->add_options() = entry;
+    }
 }
 
 /**
@@ -2470,16 +2427,15 @@ void AppClient::QueueSetDropDownState(
  * @param elementName ID of the UI element
  * @param value text
  */
-void AppClient::SetText(const std::string &elementName,
-                        const std::string &value) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetText(const std::string& elementName, const std::string& value)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  robotcontrolapp::AppUIElement &uiElement = *request.add_ui_changes();
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->mutable_textfield_state()->set_current_text(value);
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    robotcontrolapp::AppUIElement& uiElement = *request.add_ui_changes();
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_textfield_state()->set_current_text(value);
+    SendAction(request);
 }
 
 /**
@@ -2487,15 +2443,14 @@ void AppClient::SetText(const std::string &elementName,
  * @param elementName ID of the UI element
  * @param value text
  */
-void AppClient::QueueSetText(const std::string &elementName,
-                             const std::string &value) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  robotcontrolapp::AppUIElement &uiElement =
-      *m_queuedUIUpdates.add_ui_changes();
-  lock.unlock();
+void AppClient::QueueSetText(const std::string& elementName, const std::string& value)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    robotcontrolapp::AppUIElement& uiElement = *m_queuedUIUpdates.add_ui_changes();
+    lock.unlock();
 
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->mutable_textfield_state()->set_current_text(value);
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_textfield_state()->set_current_text(value);
 }
 
 /**
@@ -2503,16 +2458,15 @@ void AppClient::QueueSetText(const std::string &elementName,
  * @param elementName ID of the UI element
  * @param value number
  */
-void AppClient::SetNumber(const std::string &elementName, double value) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetNumber(const std::string& elementName, double value)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::AppAction request;
-  robotcontrolapp::AppUIElement &uiElement = *request.add_ui_changes();
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->mutable_numberfield_state()->set_current_number(
-      value);
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    robotcontrolapp::AppUIElement& uiElement = *request.add_ui_changes();
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_numberfield_state()->set_current_number(value);
+    SendAction(request);
 }
 
 /**
@@ -2520,15 +2474,14 @@ void AppClient::SetNumber(const std::string &elementName, double value) {
  * @param elementName ID of the UI element
  * @param value number
  */
-void AppClient::QueueSetNumber(const std::string &elementName, double value) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
-  robotcontrolapp::AppUIElement &uiElement =
-      *m_queuedUIUpdates.add_ui_changes();
-  lock.unlock();
+void AppClient::QueueSetNumber(const std::string& elementName, double value)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
+    robotcontrolapp::AppUIElement& uiElement = *m_queuedUIUpdates.add_ui_changes();
+    lock.unlock();
 
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()->mutable_numberfield_state()->set_current_number(
-      value);
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_numberfield_state()->set_current_number(value);
 }
 
 /**
@@ -2542,42 +2495,26 @@ void AppClient::QueueSetNumber(const std::string &elementName, double value) {
  * @param imageDataLength length of the image data
  * @param encoding image format
  */
-void AppClient::SetImage(
-    const std::string &elementName, unsigned uiWidth, unsigned uiHeight,
-    const uint8_t *imageData, size_t imageDataLength,
-    robotcontrolapp::ImageState::ImageData::ImageEncoding encoding) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::SetImage(const std::string& elementName, unsigned uiWidth, unsigned uiHeight, const uint8_t* imageData, size_t imageDataLength,
+                         robotcontrolapp::ImageState::ImageData::ImageEncoding encoding)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  // Check the image size. The CRI input buffer currently is 400kB and image
-  // data is transmitted base64 encoded. This means an upper limit of less than
-  // 300kB. Note that this limit effectively decreases when using more images or
-  // UI elements! The entire UI XML including all images must fit, otherwise it
-  // will not be shown after reconnect.
-  if (imageDataLength > 290 * 1024)
-    throw std::runtime_error(
-        "Image too big! Images must be smaller than 290kB!");
+    // Check the image size. The CRI input buffer currently is 400kB and image
+    // data is transmitted base64 encoded. This means an upper limit of less than
+    // 300kB. Note that this limit effectively decreases when using more images or
+    // UI elements! The entire UI XML including all images must fit, otherwise it
+    // will not be shown after reconnect.
+    if (imageDataLength > 290 * 1024) throw std::runtime_error("Image too big! Images must be smaller than 290kB!");
 
-  robotcontrolapp::AppAction request;
-  robotcontrolapp::AppUIElement &uiElement = *request.add_ui_changes();
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_height(uiHeight);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_width(uiWidth);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_encoding(encoding);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_data(imageData, imageDataLength);
-  SendAction(request);
+    robotcontrolapp::AppAction request;
+    robotcontrolapp::AppUIElement& uiElement = *request.add_ui_changes();
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_height(uiHeight);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_width(uiWidth);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_encoding(encoding);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_data(imageData, imageDataLength);
+    SendAction(request);
 }
 
 /**
@@ -2589,28 +2526,30 @@ void AppClient::SetImage(
  * the image height, image will be scaled) - currently not used yet
  * @param imageFile file name and path of the image file to load
  */
-void AppClient::SetImage(const std::string &elementName, unsigned uiWidth,
-                         unsigned uiHeight, const std::string &imageFile) {
-  if (!std::filesystem::is_regular_file(imageFile)) {
-    throw std::runtime_error("image file does not exist");
-  }
+void AppClient::SetImage(const std::string& elementName, unsigned uiWidth, unsigned uiHeight, const std::string& imageFile)
+{
+    if (!std::filesystem::is_regular_file(imageFile))
+    {
+        throw std::runtime_error("image file does not exist");
+    }
 
-  std::ifstream file(imageFile, std::ios::in | std::ios::binary);
-  if (file.good()) {
-    file.seekg(0, std::ios::end);
-    std::ifstream::pos_type filesize = file.tellg();
-    file.seekg(0, std::ios::beg);
+    std::ifstream file(imageFile, std::ios::in | std::ios::binary);
+    if (file.good())
+    {
+        file.seekg(0, std::ios::end);
+        std::ifstream::pos_type filesize = file.tellg();
+        file.seekg(0, std::ios::beg);
 
-    if (filesize > 290 * 1024)
-      throw std::runtime_error(
-          "Image too big! Images must be smaller than 290kB!");
-    std::vector<uint8_t> data(filesize);
-    file.read((char *)data.data(), data.size());
+        if (filesize > 290 * 1024) throw std::runtime_error("Image too big! Images must be smaller than 290kB!");
+        std::vector<uint8_t> data(filesize);
+        file.read((char*)data.data(), data.size());
 
-    SetImage(elementName, uiWidth, uiHeight, data.data(), data.size());
-  } else {
-    throw std::runtime_error("could not open image file");
-  }
+        SetImage(elementName, uiWidth, uiHeight, data.data(), data.size());
+    }
+    else
+    {
+        throw std::runtime_error("could not open image file");
+    }
 }
 
 /**
@@ -2624,40 +2563,24 @@ void AppClient::SetImage(const std::string &elementName, unsigned uiWidth,
  * @param imageDataLength length of the image data
  * @param encoding image format
  */
-void AppClient::QueueSetImage(
-    const std::string &elementName, unsigned uiWidth, unsigned uiHeight,
-    uint8_t *imageData, size_t imageDataLength,
-    robotcontrolapp::ImageState::ImageData::ImageEncoding encoding) {
-  std::unique_lock lock(m_queuedUIUpdatesMutex);
+void AppClient::QueueSetImage(const std::string& elementName, unsigned uiWidth, unsigned uiHeight, uint8_t* imageData, size_t imageDataLength,
+                              robotcontrolapp::ImageState::ImageData::ImageEncoding encoding)
+{
+    std::unique_lock lock(m_queuedUIUpdatesMutex);
 
-  // Check the image size. The CRI input buffer currently is 400kB and image
-  // data is transmitted base64 encoded. This means an upper limit of less than
-  // 300kB.
-  if (imageDataLength > 290 * 1024)
-    throw std::runtime_error(
-        "Image too big! Images must be smaller than 290kB!");
+    // Check the image size. The CRI input buffer currently is 400kB and image
+    // data is transmitted base64 encoded. This means an upper limit of less than
+    // 300kB.
+    if (imageDataLength > 290 * 1024) throw std::runtime_error("Image too big! Images must be smaller than 290kB!");
 
-  robotcontrolapp::AppUIElement &uiElement =
-      *m_queuedUIUpdates.add_ui_changes();
-  lock.unlock();
+    robotcontrolapp::AppUIElement& uiElement = *m_queuedUIUpdates.add_ui_changes();
+    lock.unlock();
 
-  uiElement.set_element_name(elementName);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_height(uiHeight);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_width(uiWidth);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_encoding(encoding);
-  uiElement.mutable_state()
-      ->mutable_image_state()
-      ->mutable_image_data()
-      ->set_data(imageData, imageDataLength);
+    uiElement.set_element_name(elementName);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_height(uiHeight);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_width(uiWidth);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_encoding(encoding);
+    uiElement.mutable_state()->mutable_image_state()->mutable_image_data()->set_data(imageData, imageDataLength);
 }
 
 /**
@@ -2669,25 +2592,24 @@ void AppClient::QueueSetImage(
  * @param title The dialog title
  * @param type the dialog type (Info, Error, Warning)
  */
-void AppClient::ShowDialog(const std::string &message, const std::string &title,
-                           robotcontrolapp::ShowDialogRequest_DialogType type) {
-  if (!IsConnected())
-    throw NotConnectedException();
+void AppClient::ShowDialog(const std::string& message, const std::string& title, robotcontrolapp::ShowDialogRequest_DialogType type)
+{
+    if (!IsConnected()) throw NotConnectedException();
 
-  robotcontrolapp::ShowDialogRequest request;
-  request.set_app_name(GetAppName());
-  auto msgDlg = request.mutable_message_dialog();
-  msgDlg->set_message(message);
-  msgDlg->set_title(title);
-  msgDlg->set_type(type);
+    robotcontrolapp::ShowDialogRequest request;
+    request.set_app_name(GetAppName());
+    auto msgDlg = request.mutable_message_dialog();
+    msgDlg->set_message(message);
+    msgDlg->set_title(title);
+    msgDlg->set_type(type);
 
-  robotcontrolapp::ShowDialogResponse response;
-  grpc::ClientContext context;
-  auto status = m_grpcStub->ShowDialog(&context, request, &response);
-  if (!status.ok()) {
-    throw std::runtime_error("request ShowDialog failed: " +
-                             status.error_message());
-  }
+    robotcontrolapp::ShowDialogResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ShowDialog(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ShowDialog failed: " + status.error_message());
+    }
 }
 
 /**
@@ -2698,10 +2620,9 @@ void AppClient::ShowDialog(const std::string &message, const std::string &title,
  * @param message The message to be displayed
  * @param title The dialog title
  */
-void AppClient::ShowInfoDialog(const std::string &message,
-                               const std::string &title) {
-  ShowDialog(message, title,
-             robotcontrolapp::ShowDialogRequest_DialogType_INFO);
+void AppClient::ShowInfoDialog(const std::string& message, const std::string& title)
+{
+    ShowDialog(message, title, robotcontrolapp::ShowDialogRequest_DialogType_INFO);
 }
 
 /**
@@ -2712,10 +2633,9 @@ void AppClient::ShowInfoDialog(const std::string &message,
  * @param message The message to be displayed
  * @param title The dialog title
  */
-void AppClient::ShowWarningDialog(const std::string &message,
-                                  const std::string &title) {
-  ShowDialog(message, title,
-             robotcontrolapp::ShowDialogRequest_DialogType_WARNING);
+void AppClient::ShowWarningDialog(const std::string& message, const std::string& title)
+{
+    ShowDialog(message, title, robotcontrolapp::ShowDialogRequest_DialogType_WARNING);
 }
 
 /**
@@ -2726,10 +2646,9 @@ void AppClient::ShowWarningDialog(const std::string &message,
  * @param message The message to be displayed
  * @param title The dialog title
  */
-void AppClient::ShowErrorDialog(const std::string &message,
-                                const std::string &title) {
-  ShowDialog(message, title,
-             robotcontrolapp::ShowDialogRequest_DialogType_ERROR);
+void AppClient::ShowErrorDialog(const std::string& message, const std::string& title)
+{
+    ShowDialog(message, title, robotcontrolapp::ShowDialogRequest_DialogType_ERROR);
 }
 
 } // namespace App
