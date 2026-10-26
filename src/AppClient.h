@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <set>
 #include <string>
@@ -30,6 +31,8 @@
 #include "DataTypes/RobotState.h"
 #include "DataTypes/Statistics.h"
 #include "DataTypes/SystemInfo.h"
+#include "DataTypes/UserFrame.h"
+#include "RobotProgram/Command/ICommand.h"
 #include "robotcontrolapp.grpc.pb.h"
 
 namespace App
@@ -738,6 +741,27 @@ public:
     DirectoryContent ListFiles(const std::string& directory);
 
     // =========================================================================
+    // Program definition
+    // =========================================================================
+
+    /**
+     * @brief Unloads the motion program
+     */
+    void ClearMotionProgram();
+
+    /**
+     * @brief Appends a command to the main motion program (in memory only, no files are changed)
+     * @param command command to add
+     */
+    void AddMotionCommand(std::shared_ptr<RobotProgram::Command::ICommand> command);
+
+    /**
+     * @brief Unloads the motion program and loads the given commands
+     * @param commands List of commands
+     */
+    void SetMotionProgram(std::vector<std::shared_ptr<RobotProgram::Command::ICommand>> commands);
+
+    // =========================================================================
     // Statistics
     // =========================================================================
     /**
@@ -747,6 +771,60 @@ public:
      * @return Statistics data
      */
     DataTypes::Statistics GetStatistics(bool resetPartsCounter = false);
+
+    // =========================================================================
+    // Reference frames
+    // =========================================================================
+
+    /**
+     * @brief Gets all user frames
+     * @return List of user frames
+     */
+    std::vector<DataTypes::UserFrame> ListUserFrames();
+
+    /**
+     * @brief Gets a user frame by name
+     * @param frameName user frame name
+     * @return User frame
+     */
+    std::optional<DataTypes::UserFrame> GetUserFrame(const std::string& frameName);
+
+    /**
+     * @brief Adds or changes a user frame
+     * @param frame Uuser frame
+     * @return True if the frame was successfully set
+     */
+    bool SetUserFrame(const DataTypes::UserFrame& frame);
+
+    /**
+     * @brief Removes a user frame
+     * @param frameName User frame name
+     * @return True if a frame was removed
+     */
+    bool RemoveUserFrame(const std::string frameName);
+
+    // =========================================================================
+    // Robot tool / gripper
+    // =========================================================================
+
+    /**
+     * @brief Gets the tool name
+     * @return Active tool configuration file name or empty string if no tool is configured
+     */
+    std::string GetTool();
+
+    /**
+     * @brief Sets the tool name
+     * @param toolName Tool configuration file name or empty string to remove the tool
+     * @return Active tool configuration file name or empty string if no tool is configured
+     */
+    std::string SetTool(const std::string& toolName);
+
+    /**
+     * @brief Removes the configured tool
+     * @return Active tool configuration file name or empty string if no tool is configured
+     */
+    std::string RemoveTool();
 
     // =========================================================================
     // App UI

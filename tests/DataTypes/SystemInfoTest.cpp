@@ -1,9 +1,8 @@
+#include <DataTypes/SystemInfo.h>
 #include <gtest/gtest.h>
 #include <robotcontrolapp.grpc.pb.h>
 
-#include "../../src/DataTypes/SystemInfo.h"
-
-TEST(App_SystemInfoTest, ConstructorDefault)
+TEST(App_SystemInfo, ConstructorDefault)
 {
     App::DataTypes::SystemInfo sysInfo;
 
@@ -36,7 +35,7 @@ TEST(App_SystemInfoTest, ConstructorDefault)
     EXPECT_EQ(0, sysInfo.digitalIOModuleCount);
 }
 
-TEST(App_SystemInfoTest, ConstructorGRPC)
+TEST(App_SystemInfo, ConstructorGRPC)
 {
     robotcontrolapp::SystemInfo sysInfoGrpc;
 

@@ -1,9 +1,8 @@
+#include <DataTypes/Statistics.h>
 #include <gtest/gtest.h>
 #include <robotcontrolapp.grpc.pb.h>
 
-#include "../../src/DataTypes/Statistics.h"
-
-TEST(App_StatisticsTest, ConstructorDefault)
+TEST(App_Statistics, ConstructorDefault)
 {
     App::DataTypes::Statistics stat;
     ASSERT_EQ(3, stat.externalAxisDirectionChanges.size());
@@ -31,7 +30,7 @@ TEST(App_StatisticsTest, ConstructorDefault)
     EXPECT_EQ(0, stat.uptimeMotion);
 }
 
-TEST(App_StatisticsTest, ConstructorGRPC)
+TEST(App_Statistics, ConstructorGRPC)
 {
     robotcontrolapp::StatisticsResponse response;
     response.set_uptime_complete(10);

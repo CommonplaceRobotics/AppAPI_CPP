@@ -1,8 +1,7 @@
+#include <DataTypes/ProgramVariable.h>
 #include <gtest/gtest.h>
 
-#include "../../src/DataTypes/ProgramVariable.h"
-
-TEST(App_NumberVariableTest, Constructor)
+TEST(App_NumberVariable, Constructor)
 {
     // name, default value
     {
@@ -37,14 +36,14 @@ TEST(App_NumberVariableTest, Constructor)
     }
 }
 
-TEST(App_NumberVariableTest, GetName)
+TEST(App_NumberVariable, GetName)
 {
     std::string name = "myVariableName";
     App::DataTypes::NumberVariable programVariable(name);
     EXPECT_STREQ(name.c_str(), programVariable.GetName().c_str());
 }
 
-TEST(App_NumberVariableTest, SetName)
+TEST(App_NumberVariable, SetName)
 {
     std::string name = "myVariableName";
     std::string newName = "otherName";
@@ -53,7 +52,7 @@ TEST(App_NumberVariableTest, SetName)
     EXPECT_STREQ(newName.c_str(), programVariable.GetName().c_str());
 }
 
-TEST(App_NumberVariableTest, GetSetValue)
+TEST(App_NumberVariable, GetSetValue)
 {
     std::string name = "myVariableName";
     App::DataTypes::NumberVariable programVariable(name, 1234.5);

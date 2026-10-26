@@ -1,8 +1,7 @@
+#include <DataTypes/ProgramVariable.h>
 #include <gtest/gtest.h>
 
-#include "../../src/DataTypes/ProgramVariable.h"
-
-TEST(App_PositionVariableTest, ConstructorCartesian)
+TEST(App_PositionVariable, ConstructorCartesian)
 {
     {
         std::string name = "myVariableName";
@@ -36,7 +35,7 @@ TEST(App_PositionVariableTest, ConstructorCartesian)
     }
 }
 
-TEST(App_PositionVariableTest, ConstructorJoints)
+TEST(App_PositionVariable, ConstructorJoints)
 {
     // name, default value
     {
@@ -69,7 +68,7 @@ TEST(App_PositionVariableTest, ConstructorJoints)
     }
 }
 
-TEST(App_PositionVariableTest, ConstructorBoth)
+TEST(App_PositionVariable, ConstructorBoth)
 {
     {
         std::string name = "myVariableName";
@@ -105,7 +104,7 @@ TEST(App_PositionVariableTest, ConstructorBoth)
     }
 }
 
-TEST(App_PositionVariableTest, GetName)
+TEST(App_PositionVariable, GetName)
 {
     std::string name = "myVariableName";
     std::array<double, 6> robotJoints{0};
@@ -115,7 +114,7 @@ TEST(App_PositionVariableTest, GetName)
     EXPECT_STREQ(name.c_str(), programVariable.GetName().c_str());
 }
 
-TEST(App_PositionVariableTest, SetName)
+TEST(App_PositionVariable, SetName)
 {
     std::string name = "myVariableName";
     std::string newName = "otherName";
@@ -127,7 +126,7 @@ TEST(App_PositionVariableTest, SetName)
     EXPECT_STREQ(newName.c_str(), programVariable.GetName().c_str());
 }
 
-TEST(App_PositionVariableTest, GetSetRobotAxes)
+TEST(App_PositionVariable, GetSetRobotAxes)
 {
     std::string name = "myVariableName";
     std::array<double, 6> robotJoints{0};
@@ -145,7 +144,7 @@ TEST(App_PositionVariableTest, GetSetRobotAxes)
     EXPECT_EQ(externalJoints[2], programVariable.GetExternalAxes()[2]);
 }
 
-TEST(App_PositionVariableTest, GetSetExternalAxes)
+TEST(App_PositionVariable, GetSetExternalAxes)
 {
     std::string name = "myVariableName";
     std::array<double, 6> robotJoints{0};
@@ -163,7 +162,7 @@ TEST(App_PositionVariableTest, GetSetExternalAxes)
     EXPECT_EQ(newExternalJoints[2], programVariable.GetExternalAxes()[2]);
 }
 
-TEST(App_PositionVariableTest, GetSetCartesian)
+TEST(App_PositionVariable, GetSetCartesian)
 {
     std::string name = "myVariableName";
     std::array<double, 6> robotJoints{0};

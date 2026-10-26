@@ -1,9 +1,8 @@
+#include <DataTypes/RobotState.h>
 #include <gtest/gtest.h>
 #include <robotcontrolapp.grpc.pb.h>
 
-#include "../../src/DataTypes/RobotState.h"
-
-TEST(App_RobotStateJointTest, ConstructorDefault)
+TEST(App_RobotStateJoint, ConstructorDefault)
 {
     App::DataTypes::RobotState::Joint joint;
 
@@ -22,7 +21,7 @@ TEST(App_RobotStateJointTest, ConstructorDefault)
     EXPECT_FLOAT_EQ(0, joint.targetVelocity);
 }
 
-TEST(App_RobotStateJointTest, ConstructorGRPC)
+TEST(App_RobotStateJoint, ConstructorGRPC)
 {
     {
         robotcontrolapp::Joint jointGrpc;

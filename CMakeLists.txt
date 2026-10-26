@@ -39,10 +39,6 @@ set(PROTO_SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated_protos")
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC_DIR} ${PROTOS})
 grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC_DIR} ${PROTOS})
 
-list(APPEND INCLUDE_DIRS
-    ${PROTO_SRC_DIR}
-)
-
 list(APPEND GRPC_SOURCES
     ${GRPC_SRCS}
     ${PROTO_SRCS}
@@ -54,13 +50,15 @@ list(APPEND GRPC_SOURCES
 
 file(GLOB APP_SOURCES src/*.cpp)
 file(GLOB APP_SOURCES_DATATYPES src/DataTypes/*.cpp)
+file(GLOB APP_SOURCES_RobotProgram src/RobotProgram/Command/*.cpp)
 file(GLOB SOURCES_tests_DataTypes tests/DataTypes/*.cpp)
+file(GLOB SOURCES_tests_RobotProgram tests/RobotProgram/Command/*.cpp)
 
 add_library(iRCApp
 	${GRPC_SOURCES}
 	${APP_SOURCES}
 	${APP_SOURCES_DATATYPES}
-)
+	${APP_SOURCES_RobotProgram})
 
 target_include_directories(iRCApp
 	PUBLIC
@@ -108,11 +106,13 @@ if (BUILD_TESTS)
 
     add_executable(iRCApp_Tests
         ${SOURCES_tests_DataTypes}
-    )
+        ${SOURCES_tests_RobotProgram})
 
     target_include_directories(iRCApp_Tests
 		PRIVATE
-        ${INCLUDE_DIRS}
+        src
+        ${PROTO_SRC_DIR}
+        ${CMAKE_CURRENT_BINARY_DIR}/src/
 	)
 
     target_link_libraries(iRCApp_Tests

@@ -1,8 +1,7 @@
+#include <DataTypes/LicenseDetails.h>
 #include <gtest/gtest.h>
 
-#include "../../src/DataTypes/LicenseDetails.h"
-
-TEST(App_LicenseDetailsTest, ConstructorDefault)
+TEST(App_LicenseDetails, ConstructorDefault)
 {
     App::DataTypes::LicenseDetails ld;
     EXPECT_STREQ("", ld.featureID.c_str());
@@ -10,7 +9,7 @@ TEST(App_LicenseDetailsTest, ConstructorDefault)
     EXPECT_STREQ("", ld.expiryDate.c_str());
 }
 
-TEST(App_LicenseDetailsTest, ConstructorGRPC)
+TEST(App_LicenseDetails, ConstructorGRPC)
 {
     {
         robotcontrolapp::LicenseInfoResponse_LicenseDetails grpc;

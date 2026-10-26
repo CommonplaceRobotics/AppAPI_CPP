@@ -2137,6 +2137,76 @@ AppClient::DirectoryContent AppClient::ListFiles(const std::string& directory)
 }
 
 /**
+ * @brief Unloads the motion program
+ */
+void AppClient::ClearMotionProgram()
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::AddCommandRequest request;
+    request.set_app_name(GetAppName());
+    request.set_clear_program(true);
+    robotcontrolapp::AddCommandResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->AddCommand(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request AddCommand failed: " + status.error_message());
+    }
+
+    if (!response.success()) throw std::runtime_error(response.message());
+}
+
+/**
+ * @brief Appends a command to the main motion program (in memory only, no files are changed)
+ * @param command command to add
+ */
+void AppClient::AddMotionCommand(std::shared_ptr<RobotProgram::Command::ICommand> command)
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::AddCommandRequest request;
+    request.set_app_name(GetAppName());
+    request.set_clear_program(false);
+    *request.add_commands() = command->GetCmdParameters();
+    robotcontrolapp::AddCommandResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->AddCommand(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request AddCommand failed: " + status.error_message());
+    }
+
+    if (!response.success()) throw std::runtime_error(response.message());
+}
+
+/**
+ * @brief Unloads the motion program and loads the given commands
+ * @param commands List of commands
+ */
+void AppClient::SetMotionProgram(std::vector<std::shared_ptr<RobotProgram::Command::ICommand>> commands)
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::AddCommandRequest request;
+    request.set_app_name(GetAppName());
+    request.set_clear_program(true);
+    for (std::shared_ptr<RobotProgram::Command::ICommand> command : commands)
+    {
+        *request.add_commands() = command->GetCmdParameters();
+    }
+    robotcontrolapp::AddCommandResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->AddCommand(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request AddCommand failed: " + status.error_message());
+    }
+
+    if (!response.success()) throw std::runtime_error(response.message());
+}
+
+/**
  * @brief Gets the statistics data
  * @param resetPartsCounter Set true to reset the parts counters (number
  * variables #parts-good and #parts-bad) to 0
@@ -2158,6 +2228,158 @@ DataTypes::Statistics AppClient::GetStatistics(bool resetPartsCounter)
     }
 
     return DataTypes::Statistics(response);
+}
+
+/**
+ * @brief Gets all user frames
+ * @return List of user frames
+ */
+std::vector<DataTypes::UserFrame> AppClient::ListUserFrames()
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::ListUserFramesRequest request;
+    request.set_app_name(GetAppName());
+    robotcontrolapp::ListUserFramesResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->ListUserFrames(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request ListUserFrames failed: " + status.error_message());
+    }
+
+    std::vector<DataTypes::UserFrame> ret;
+    for (auto& frame : response.frames())
+    {
+        ret.push_back(DataTypes::UserFrame(frame));
+    }
+
+    return ret;
+}
+
+/**
+ * @brief Gets a user frame by name
+ * @param frameName user frame name
+ * @return User frame
+ */
+std::optional<DataTypes::UserFrame> AppClient::GetUserFrame(const std::string& frameName)
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::GetUserFrameRequest request;
+    request.set_app_name(GetAppName());
+    request.set_name(frameName);
+    robotcontrolapp::GetUserFrameResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->GetUserFrame(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetUserFrame failed: " + status.error_message());
+    }
+
+    if (response.has_frame())
+        return DataTypes::UserFrame(response.frame());
+    else
+        return std::optional<DataTypes::UserFrame>();
+}
+
+/**
+ * @brief Adds or changes a user frame
+ * @param frame Uuser frame
+ * @return True if the frame was successfully set
+ */
+bool AppClient::SetUserFrame(const DataTypes::UserFrame& frame)
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::SetUserFrameRequest request;
+    request.set_app_name(GetAppName());
+    *request.mutable_frame() = frame.ToGrpc();
+    robotcontrolapp::SetUserFrameResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetUserFrame(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request SetUserFrame failed: " + status.error_message());
+    }
+
+    return response.success();
+}
+
+/**
+ * @brief Removes a user frame
+ * @param frameName User frame name
+ * @return True if a frame was removed
+ */
+bool AppClient::RemoveUserFrame(const std::string frameName)
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::RemoveUserFrameRequest request;
+    request.set_app_name(GetAppName());
+    request.set_name(frameName);
+    robotcontrolapp::RemoveUserFrameResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->RemoveUserFrame(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request RemoveUserFrame failed: " + status.error_message());
+    }
+
+    return response.success();
+}
+
+/**
+ * @brief Gets the tool name
+ * @return Active tool configuration file name or empty string if no tool is configured
+ */
+std::string AppClient::GetTool()
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::SetToolRequest request;
+    request.set_app_name(GetAppName());
+    robotcontrolapp::SetToolResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetTool(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetTool failed: " + status.error_message());
+    }
+
+    return response.active_tool();
+}
+
+/**
+ * @brief Sets the tool name
+ * @param toolName Tool configuration file name or empty string to remove the tool
+ * @return Active tool configuration file name or empty string if no tool is configured
+ */
+std::string AppClient::SetTool(const std::string& toolName)
+{
+    if (!IsConnected()) throw NotConnectedException();
+
+    robotcontrolapp::SetToolRequest request;
+    request.set_app_name(GetAppName());
+    request.set_tool(toolName);
+    robotcontrolapp::SetToolResponse response;
+    grpc::ClientContext context;
+    auto status = m_grpcStub->SetTool(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("request GetTool failed: " + status.error_message());
+    }
+
+    return response.active_tool();
+}
+
+/**
+ * @brief Removes the configured tool
+ * @return Active tool configuration file name or empty string if no tool is configured
+ */
+std::string AppClient::RemoveTool()
+{
+    return SetTool("");
 }
 
 /**

@@ -1,8 +1,7 @@
+#include <DataTypes/Matrix44.h>
 #include <gtest/gtest.h>
 
-#include "../../src/DataTypes/Matrix44.h"
-
-TEST(App_Matrix44Test, ConstructorDefault)
+TEST(App_Matrix44, ConstructorDefault)
 {
     App::DataTypes::Matrix44 matrix;
     // expecting the unit matrix
@@ -27,7 +26,7 @@ TEST(App_Matrix44Test, ConstructorDefault)
     EXPECT_EQ(1.0, matrix[15]);
 }
 
-TEST(App_Matrix44Test, ConstructorCopy)
+TEST(App_Matrix44, ConstructorCopy)
 {
     App::DataTypes::Matrix44 matrix;
     for (int i = 0; i < 16; i++) matrix[i] = 10 * (i + 1); // 10, 20, 30,... 160
@@ -54,7 +53,7 @@ TEST(App_Matrix44Test, ConstructorCopy)
     EXPECT_EQ(160.0, result[15]);
 }
 
-TEST(App_Matrix44Test, OperatorElementAccess)
+TEST(App_Matrix44, OperatorElementAccess)
 {
     App::DataTypes::Matrix44 matrix;
     // write access
@@ -140,7 +139,7 @@ TEST(App_Matrix44Test, OperatorElementAccess)
     {}
 }
 
-TEST(App_Matrix44Test, OperatorElementAccessXYReadConst)
+TEST(App_Matrix44, OperatorElementAccessXYReadConst)
 {
     App::DataTypes::Matrix44 matrixNonConst;
     for (int i = 0; i < 16; i++) matrixNonConst[i] = 10 * (i + 1); // 10, 20, 30,... 160
@@ -199,7 +198,7 @@ TEST(App_Matrix44Test, OperatorElementAccessXYReadConst)
     {}
 }
 
-TEST(App_Matrix44Test, OperatorElementAccessXYRead)
+TEST(App_Matrix44, OperatorElementAccessXYRead)
 {
     App::DataTypes::Matrix44 matrix;
     for (int i = 0; i < 16; i++) matrix[i] = 10 * (i + 1); // 10, 20, 30,... 160
@@ -257,7 +256,7 @@ TEST(App_Matrix44Test, OperatorElementAccessXYRead)
     {}
 }
 
-TEST(App_Matrix44Test, OperatorElementAccessXYWrite)
+TEST(App_Matrix44, OperatorElementAccessXYWrite)
 {
     App::DataTypes::Matrix44 matrix;
 
@@ -334,70 +333,70 @@ TEST(App_Matrix44Test, OperatorElementAccessXYWrite)
     {}
 }
 
-TEST(App_Matrix44Test, GetX)
+TEST(App_Matrix44, GetX)
 {
     App::DataTypes::Matrix44 matrix;
     matrix(0, 3) = 10;
     EXPECT_EQ(10, matrix.GetX());
 }
 
-TEST(App_Matrix44Test, GetY)
+TEST(App_Matrix44, GetY)
 {
     App::DataTypes::Matrix44 matrix;
     matrix(1, 3) = 20;
     EXPECT_EQ(20, matrix.GetY());
 }
 
-TEST(App_Matrix44Test, GetZ)
+TEST(App_Matrix44, GetZ)
 {
     App::DataTypes::Matrix44 matrix;
     matrix(2, 3) = 30;
     EXPECT_EQ(30, matrix.GetZ());
 }
 
-TEST(App_Matrix44Test, SetX)
+TEST(App_Matrix44, SetX)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetX(100);
     EXPECT_EQ(100, matrix.GetX());
 }
 
-TEST(App_Matrix44Test, SetY)
+TEST(App_Matrix44, SetY)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetY(200);
     EXPECT_EQ(200, matrix.GetY());
 }
 
-TEST(App_Matrix44Test, SetZ)
+TEST(App_Matrix44, SetZ)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetZ(300);
     EXPECT_EQ(300, matrix.GetZ());
 }
 
-TEST(App_Matrix44Test, GetA)
+TEST(App_Matrix44, GetA)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetOrientation(10, 0, 0);
     EXPECT_NEAR(10, matrix.GetA(), 0.0001);
 }
 
-TEST(App_Matrix44Test, GetB)
+TEST(App_Matrix44, GetB)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetOrientation(0, 20, 0);
     EXPECT_NEAR(20, matrix.GetB(), 0.0001);
 }
 
-TEST(App_Matrix44Test, GetC)
+TEST(App_Matrix44, GetC)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetOrientation(0, 0, 30);
     EXPECT_NEAR(30, matrix.GetC(), 0.0001);
 }
 
-TEST(App_Matrix44Test, SetA)
+TEST(App_Matrix44, SetA)
 {
     {
         App::DataTypes::Matrix44 matrix;
@@ -440,7 +439,7 @@ TEST(App_Matrix44Test, SetA)
     }
 }
 
-TEST(App_Matrix44Test, SetB)
+TEST(App_Matrix44, SetB)
 {
     // Note: different but effectively equivalent angles are returned due to how
     // ABC is calculated from the matrix representation.
@@ -485,7 +484,7 @@ TEST(App_Matrix44Test, SetB)
     }
 }
 
-TEST(App_Matrix44Test, SetC)
+TEST(App_Matrix44, SetC)
 {
     {
         App::DataTypes::Matrix44 matrix;
@@ -528,7 +527,7 @@ TEST(App_Matrix44Test, SetC)
     }
 }
 
-TEST(App_Matrix44Test, Translate)
+TEST(App_Matrix44, Translate)
 {
     App::DataTypes::Matrix44 matrix;
     matrix(0, 3) = 10;
@@ -540,7 +539,7 @@ TEST(App_Matrix44Test, Translate)
     EXPECT_EQ(330, matrix.GetZ());
 }
 
-TEST(App_Matrix44Test, GetOrientation)
+TEST(App_Matrix44, GetOrientation)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetOrientation(10, 20, 30);
@@ -552,7 +551,7 @@ TEST(App_Matrix44Test, GetOrientation)
     EXPECT_NEAR(30, resC, 0.0001);
 }
 
-TEST(App_Matrix44Test, SetOrientation)
+TEST(App_Matrix44, SetOrientation)
 {
     App::DataTypes::Matrix44 matrix;
     matrix.SetOrientation(10, 20, 30);
@@ -561,7 +560,7 @@ TEST(App_Matrix44Test, SetOrientation)
     EXPECT_NEAR(30, matrix.GetC(), 0.0001);
 }
 
-TEST(App_Matrix44Test, ToGrpc)
+TEST(App_Matrix44, ToGrpc)
 {
     App::DataTypes::Matrix44 matrix;
     for (int i = 0; i < 16; i++) matrix[i] = 10 * (i + 1); // 10, 20, 30,... 160
