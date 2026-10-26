@@ -7,7 +7,7 @@
 cmake_minimum_required (VERSION 3.16)
 
 project(iRC_App_API
-	VERSION 14.6.7
+	VERSION 15.2.0
     LANGUAGES C CXX
 )
 # Life cycle information for the SBOM
