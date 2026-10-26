@@ -26,6 +26,8 @@ This API is an abstraction for the [gRPC](https://grpc.io/) based app interface.
 ## API documentation
 The header files in ```src``` are extensively documented. Start by reading the public methods of [AppClient.h](src/AppClient.h), which contains most functions of the app API.
 
+The directory [doc](doc/README.md) contains guides for specific tasks.
+
 ## Using this library
 
 We suggest using the [minimal sample app](https://github.com/CommonplaceRobotics/RobotControlApps) as a starting point for your igus Robot Control app. Its documentation also explains how to set up the additional files (e.g. ```rcapp.xml``` and ```ui.xml```) and the package structure.
@@ -46,45 +48,37 @@ If you start out from scratch we recommend the following approach:
     ```
 4. Install the dependencies, e.g. using a package manager like Conan, see the next section.
 
+## Compatibility
+The API should run on any system that can compile and run the GRPC code.
+
+Any documentation and scripts in this repository have been tested with:
+* Visual Studio 2022 and 2026 on Windows 11 (MSVC compiler)
+* gcc 11 for x86_64 on Ubuntu 22.04 in WSL
+* gcc 10.5 for armv8_32 on Ubuntu 22.04 in WSL
+
 ## Installing the dependencies
 The App API depends on the following libraries (see the required/recommended versions in ```conanfile.py```):
 * gRPC
-* gtest (only if building the tests)
+* gtest (only if building the tests, see CMake option ```BUILD_TESTS```)
 
-When cross compiling the gRPC and Protobuf compilers are required on the build system.
+While you can manually install the dependencies into your system we recommend using the package manager [Conan](https://conan.io/). Follow Conan's documentation on [how to install and set up Conan](https://docs.conan.io/2/installation.html).
 
-We assume that you are compiling on Windows with MSVC (the Visual Studio Compiler) and cross-compiling for armhf (Raspberry Pi 4) on Ubuntu in WSL. Compiling on a native Linux system should work in the same way.
+The Conan default profile may work out of the box but for compatiblity with our scripts we suggest installing our profiles. You can find these in directory ```tools/conan/profiles/<Operating System>```. Copy these into your Conan profiles directory (```~/.conan2/profiles``` on Linux, ```C:\Users\<User>\.conan2\profiles``` on Windows).
 
-We suggest using Conan 2 for installing the dependencies, but you can also use other approaches like vcpkg or natively installed packages. If you use Conan set up a ```conanfile.py``` in your project with the given dependencies (you may copy the file from this repository).
+For cross compiling to let your app run on the embedded control module you will need our cross compilation toolchain:
+```bash
+mkdir -p /opt/gcc
+cd /opt/gcc
+sudo wget --quiet https://downloads.cpr-robots.com/Software/CI/gcc_armv8-rpi4-linux-gnueabihf.tar.gz
+sudo tar -xf gcc_armv8-rpi4-linux-gnueabihf.tar.gz
+```
+If you prefer to install it to a different location you will need to change the paths in the Conan profile file ```cpr_linux_rpi4_gcc10```.
 
-The following sections explain how to install the toolchain and dependencies using Conan 2. Note that compiling the dependencies (especially gRPC) may take a long time (15-30 minutes or more).
 
-### Windows
-Follow this approach if you want to compile your app for Windows, e.g. for testing, for running it in simulation or to run it on a Windows PC while letting the app connect to a real robot.
 
-1. Install [Visual Studio](https://visualstudio.microsoft.com)
-2. Run the following commands in a Developer Powershell: In Visual Studio's menu bar click "Tools -> Command Line -> Developer PowerShell". This makes sure all development tools are found.
-3. Install [Conan 2](https://conan.io/)
-4. Generate the default Conan profile:
-    ```sh
-    conan profile detect
-    ```
-5. You can work with the default profile but we suggest installing our custom profiles, which are based on the default profile. To do this copy the files from ```tools/conan/profile/Windows``` to ```C:\Users\YourUserName\.conan2\profiles```.
-6. In your project directory run the following command to download and build the dependencies and to generate a CMake toolchain file in ```out\conan\Windows\Release\generators```.
-    ```sh
-    conan install . --lockfile-partial --build=missing --profile=cpr_windows_x86_64_release -c tools.cmake.cmake_layout:build_folder_vars="['settings.os', 'settings.arch']" -s:b compiler.cppstd=17
-    ```
-    If you do not want to remember this command you may copy ```conan_install_windows.ps1``` to your project.
-7. Note that ```CMakeUserPresets.json``` is generated in your project directory (this file should not be checked in to version control). CMake (version 3.19 and newer) can use this to configure and build your app:
-    ```sh
-    cmake --preset conan-windows-x86_64-release
-    cmake --build --preset conan-windows-x86_64-release
-    ```
-    Alternatively you can open your project's directory in Visual Studio. It should detect it as a CMake project and find the generated toolchain from ```CMakeUserPresets.json```. Select the toolchain (```conan-windows-x86_64-release``` or ```conan-windows-x86_64-debug```) and the target (your app binary) in the menu above the code editor, then build your app.
 
-The same approach works for editing the API code.
+# ALT
 
-Repeat step 6 after updating the API, this will install the newest dependencies.
 
 ### Linux native
 Follow this approach if you want to test or run your app on a Linux system without cross compiling. This was testet on Ubuntu 22.04 in WSL but should work similarly for different distributions.
