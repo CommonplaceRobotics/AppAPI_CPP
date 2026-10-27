@@ -92,62 +92,62 @@ public:
      * @brief Gets the target X position
      * @return position in mm
      */
-    float GetTargetX() const;
+    float GetX() const;
     /**
      * @brief Gets the target Y position
      * @return position in mm
      */
-    float GetTargetY() const;
+    float GetY() const;
     /**
      * @brief Gets the target Z position
      * @return position in mm
      */
-    float GetTargetZ() const;
+    float GetZ() const;
     /**
      * @brief Gets the target A orientation
      * @return position in degrees
      */
-    float GetTargetA() const;
+    float GetA() const;
     /**
      * @brief Gets the target B orientation
      * @return position in degrees
      */
-    float GetTargetB() const;
+    float GetB() const;
     /**
      * @brief Gets the target C orientation
      * @return position in degrees
      */
-    float GetTargetC() const;
+    float GetC() const;
     /**
      * @brief Sets the target X position
      * @param x position in mm
      */
-    void SetTargetX(float x);
+    void SetX(float x);
     /**
      * @brief Sets the target Y position
      * @param y position in mm
      */
-    void SetTargetY(float y);
+    void SetY(float y);
     /**
      * @brief Sets the target Z position
      * @param z position in mm
      */
-    void SetTargetZ(float z);
+    void SetZ(float z);
     /**
      * @brief Sets the target A orientation
      * @param a orientation in degrees
      */
-    void SetTargetA(float a);
+    void SetA(float a);
     /**
      * @brief Sets the target B orientation
      * @param b orientation in degrees
      */
-    void SetTargetB(float b);
+    void SetB(float b);
     /**
      * @brief Sets the target C orientation
      * @param c orientation in degrees
      */
-    void SetTargetC(float c);
+    void SetC(float c);
 
     /**
      * @brief Gets the target position for E1

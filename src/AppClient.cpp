@@ -1757,10 +1757,12 @@ float AppClient::SetVelocityOverride(float velocityPercent)
  * @param resultJoints 6 robot joints and 3 external joints. The result is
  * written here
  * @param resultState the result state is written here. 0 on success, other
- * value on error return true on success
+ * value on error
+ * @param referenceFrame reference frame to convert from
+ * @return true on success
  */
 bool AppClient::TranslateCartToJoint(double x, double y, double z, double a, double b, double c, const std::array<double, 9>& initialJoints,
-                                     std::array<double, 9>& resultJoints, robotcontrolapp::KinematicState& resultState)
+                                     std::array<double, 9>& resultJoints, robotcontrolapp::KinematicState& resultState, const std::string& referenceFrame)
 {
     if (!IsConnected()) throw NotConnectedException();
 
@@ -1773,6 +1775,7 @@ bool AppClient::TranslateCartToJoint(double x, double y, double z, double a, dou
     request.mutable_orientation()->set_x(a);
     request.mutable_orientation()->set_y(b);
     request.mutable_orientation()->set_z(c);
+    if (!referenceFrame.empty()) request.set_reference_frame(referenceFrame);
 
     robotcontrolapp::CartToJointResponse response;
     grpc::ClientContext context;
@@ -1798,13 +1801,14 @@ bool AppClient::TranslateCartToJoint(double x, double y, double z, double a, dou
  * @param c result C orientation of the TCP in degrees
  * @param resultState the result state is written here. 0 on success, other
  * value on error
+ * @param referenceFrame reference frame to convert to
  * @return true on success
  */
 bool AppClient::TranslateJointToCart(const std::array<double, 9>& joints, double& x, double& y, double& z, double& a, double& b, double& c,
-                                     robotcontrolapp::KinematicState& resultState)
+                                     robotcontrolapp::KinematicState& resultState, const std::string& referenceFrame)
 {
     DataTypes::Matrix44 resultPosition;
-    bool result = TranslateJointToCart(joints, resultPosition, resultState);
+    bool result = TranslateJointToCart(joints, resultPosition, resultState, referenceFrame);
     x = resultPosition.GetX();
     y = resultPosition.GetY();
     z = resultPosition.GetZ();
@@ -1821,15 +1825,18 @@ bool AppClient::TranslateJointToCart(const std::array<double, 9>& joints, double
  * here
  * @param resultState the result state is written here. 0 on success, other
  * value on error
+ * @param referenceFrame reference frame to convert to
  * @return true on success
  */
-bool AppClient::TranslateJointToCart(const std::array<double, 9>& joints, DataTypes::Matrix44& tcp, robotcontrolapp::KinematicState& resultState)
+bool AppClient::TranslateJointToCart(const std::array<double, 9>& joints, DataTypes::Matrix44& tcp, robotcontrolapp::KinematicState& resultState,
+                                     const std::string& referenceFrame)
 {
     if (!IsConnected()) throw NotConnectedException();
 
     robotcontrolapp::JointToCartRequest request;
     request.set_app_name(GetAppName());
     for (size_t i = 0; i < joints.size(); i++) request.add_joints(joints[i]);
+    if (!referenceFrame.empty()) request.set_reference_frame(referenceFrame);
 
     robotcontrolapp::JointToCartResponse response;
     grpc::ClientContext context;

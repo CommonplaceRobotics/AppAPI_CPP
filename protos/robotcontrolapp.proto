@@ -1125,9 +1125,9 @@ message CmdSetVelocityParameters
 message CmdCopyUserFrameParameters
 {
     // Name of the user frame to copy from
-    string from = 1;
+    string from_frame = 1;
     // Name of the user frame to copy to
-    string to = 2;
+    string to_frame = 2;
 }
 
 message AddCommandRequest

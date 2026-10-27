@@ -7,8 +7,8 @@ TEST(App_Command_CopyUserFrame, ConstructorDefault)
     EXPECT_STREQ("", cmd.GetFrom().c_str());
     EXPECT_STREQ("", cmd.GetTo().c_str());
     ASSERT_TRUE(cmd.GetCmdParameters().has_copy_user_frame());
-    EXPECT_STREQ("", cmd.GetCmdParameters().copy_user_frame().from().c_str());
-    EXPECT_STREQ("", cmd.GetCmdParameters().copy_user_frame().to().c_str());
+    EXPECT_STREQ("", cmd.GetCmdParameters().copy_user_frame().from_frame().c_str());
+    EXPECT_STREQ("", cmd.GetCmdParameters().copy_user_frame().to_frame().c_str());
 }
 
 TEST(App_Command_CopyUserFrame, Constructor)
@@ -21,8 +21,8 @@ TEST(App_Command_CopyUserFrame, Constructor)
         EXPECT_STREQ(from.c_str(), cmd.GetFrom().c_str());
         EXPECT_STREQ(to.c_str(), cmd.GetTo().c_str());
         ASSERT_TRUE(cmd.GetCmdParameters().has_copy_user_frame());
-        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from().c_str());
-        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to().c_str());
+        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from_frame().c_str());
+        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to_frame().c_str());
     }
 
     {
@@ -33,8 +33,8 @@ TEST(App_Command_CopyUserFrame, Constructor)
         EXPECT_STREQ(from.c_str(), cmd.GetFrom().c_str());
         EXPECT_STREQ(to.c_str(), cmd.GetTo().c_str());
         ASSERT_TRUE(cmd.GetCmdParameters().has_copy_user_frame());
-        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from().c_str());
-        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to().c_str());
+        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from_frame().c_str());
+        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to_frame().c_str());
     }
 }
 
@@ -54,8 +54,8 @@ TEST(App_Command_CopyUserFrame, SetFrom)
         EXPECT_STREQ(from_new.c_str(), cmd.GetFrom().c_str());
         EXPECT_STREQ(to.c_str(), cmd.GetTo().c_str());
         ASSERT_TRUE(cmd.GetCmdParameters().has_copy_user_frame());
-        EXPECT_STREQ(from_new.c_str(), cmd.GetCmdParameters().copy_user_frame().from().c_str());
-        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to().c_str());
+        EXPECT_STREQ(from_new.c_str(), cmd.GetCmdParameters().copy_user_frame().from_frame().c_str());
+        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to_frame().c_str());
     }
 
     {
@@ -72,8 +72,8 @@ TEST(App_Command_CopyUserFrame, SetFrom)
         EXPECT_STREQ(from_new.c_str(), cmd.GetFrom().c_str());
         EXPECT_STREQ(to.c_str(), cmd.GetTo().c_str());
         ASSERT_TRUE(cmd.GetCmdParameters().has_copy_user_frame());
-        EXPECT_STREQ(from_new.c_str(), cmd.GetCmdParameters().copy_user_frame().from().c_str());
-        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to().c_str());
+        EXPECT_STREQ(from_new.c_str(), cmd.GetCmdParameters().copy_user_frame().from_frame().c_str());
+        EXPECT_STREQ(to.c_str(), cmd.GetCmdParameters().copy_user_frame().to_frame().c_str());
     }
 }
 
@@ -93,8 +93,8 @@ TEST(App_Command_CopyUserFrame, SetTo)
         EXPECT_STREQ(from.c_str(), cmd.GetFrom().c_str());
         EXPECT_STREQ(to_new.c_str(), cmd.GetTo().c_str());
         ASSERT_TRUE(cmd.GetCmdParameters().has_copy_user_frame());
-        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from().c_str());
-        EXPECT_STREQ(to_new.c_str(), cmd.GetCmdParameters().copy_user_frame().to().c_str());
+        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from_frame().c_str());
+        EXPECT_STREQ(to_new.c_str(), cmd.GetCmdParameters().copy_user_frame().to_frame().c_str());
     }
 
     {
@@ -111,7 +111,7 @@ TEST(App_Command_CopyUserFrame, SetTo)
         EXPECT_STREQ(from.c_str(), cmd.GetFrom().c_str());
         EXPECT_STREQ(to_new.c_str(), cmd.GetTo().c_str());
         ASSERT_TRUE(cmd.GetCmdParameters().has_copy_user_frame());
-        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from().c_str());
-        EXPECT_STREQ(to_new.c_str(), cmd.GetCmdParameters().copy_user_frame().to().c_str());
+        EXPECT_STREQ(from.c_str(), cmd.GetCmdParameters().copy_user_frame().from_frame().c_str());
+        EXPECT_STREQ(to_new.c_str(), cmd.GetCmdParameters().copy_user_frame().to_frame().c_str());
     }
 }

@@ -3,3 +3,4 @@
 This folder contains guides for the C++ App API.
 
 * [Program Definition](ProgramDefinition.md)
+* [Tool Change](ToolChange.md)

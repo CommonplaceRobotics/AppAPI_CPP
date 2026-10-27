@@ -14,8 +14,8 @@ namespace Command
  */
 CopyUserFrame::CopyUserFrame(const std::string from, const std::string& to)
 {
-    data.set_from(from);
-    data.set_to(to);
+    data.set_from_frame(from);
+    data.set_to_frame(to);
 }
 
 /**
@@ -34,7 +34,7 @@ robotcontrolapp::AddCommandRequest_CmdParameters CopyUserFrame::GetCmdParameters
  */
 std::string CopyUserFrame::GetFrom() const
 {
-    return data.from();
+    return data.from_frame();
 }
 
 /**
@@ -43,7 +43,7 @@ std::string CopyUserFrame::GetFrom() const
  */
 std::string CopyUserFrame::GetTo() const
 {
-    return data.to();
+    return data.to_frame();
 }
 
 /**
@@ -52,7 +52,7 @@ std::string CopyUserFrame::GetTo() const
  */
 void CopyUserFrame::SetFrom(const std::string& from)
 {
-    data.set_from(from);
+    data.set_from_frame(from);
 }
 
 /**
@@ -61,7 +61,7 @@ void CopyUserFrame::SetFrom(const std::string& from)
  */
 void CopyUserFrame::SetTo(const std::string& to)
 {
-    data.set_to(to);
+    data.set_to_frame(to);
 }
 
 } // namespace Command

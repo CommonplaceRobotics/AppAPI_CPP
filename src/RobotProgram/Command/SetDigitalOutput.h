@@ -26,7 +26,7 @@ public:
 
     /**
      * @brief Constructor
-     * @param id Digital output ID with index base 0 (i.e. index 0 refers to GSig1). Range 0..63
+     * @param id Digital output ID with index base 0 (i.e. index 0 refers to DOut1). Range 0..63
      * @param state Target state
      */
     SetDigitalOutput(uint32_t id, bool state);
@@ -38,7 +38,7 @@ public:
 
     /**
      * @brief Gets the digital output ID
-     * @return ID with index base 0 (i.e. index 0 refers to GSig1). Range 0..63
+     * @return ID with index base 0 (i.e. index 0 refers to DOut1). Range 0..63
      */
     uint32_t GetID() const;
     /**
@@ -49,7 +49,7 @@ public:
 
     /**
      * @brief Sets the digital output ID
-     * @param id Digital output ID with index base 0 (i.e. index 0 refers to GSig1). Range 0..63
+     * @param id Digital output ID with index base 0 (i.e. index 0 refers to DOut1). Range 0..63
      */
     void SetID(uint32_t id);
     /**

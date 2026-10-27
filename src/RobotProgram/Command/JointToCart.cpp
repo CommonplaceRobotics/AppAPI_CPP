@@ -123,7 +123,7 @@ void JointToCart::SetVariable(const std::string& variable)
  * @brief Gets the target X position
  * @return position in mm
  */
-float JointToCart::GetTargetX() const
+float JointToCart::GetX() const
 {
     return data.target_x();
 }
@@ -132,7 +132,7 @@ float JointToCart::GetTargetX() const
  * @brief Gets the target Y position
  * @return position in mm
  */
-float JointToCart::GetTargetY() const
+float JointToCart::GetY() const
 {
     return data.target_y();
 }
@@ -141,7 +141,7 @@ float JointToCart::GetTargetY() const
  * @brief Gets the target Z position
  * @return position in mm
  */
-float JointToCart::GetTargetZ() const
+float JointToCart::GetZ() const
 {
     return data.target_z();
 }
@@ -150,7 +150,7 @@ float JointToCart::GetTargetZ() const
  * @brief Gets the target A orientation
  * @return position in degrees
  */
-float JointToCart::GetTargetA() const
+float JointToCart::GetA() const
 {
     return data.target_a();
 }
@@ -159,7 +159,7 @@ float JointToCart::GetTargetA() const
  * @brief Gets the target B orientation
  * @return position in degrees
  */
-float JointToCart::GetTargetB() const
+float JointToCart::GetB() const
 {
     return data.target_b();
 }
@@ -168,7 +168,7 @@ float JointToCart::GetTargetB() const
  * @brief Gets the target C orientation
  * @return position in degrees
  */
-float JointToCart::GetTargetC() const
+float JointToCart::GetC() const
 {
     return data.target_c();
 }
@@ -177,7 +177,7 @@ float JointToCart::GetTargetC() const
  * @brief Sets the target X position
  * @param x position in mm
  */
-void JointToCart::SetTargetX(float x)
+void JointToCart::SetX(float x)
 {
     data.set_target_x(x);
     data.clear_target_pos_variable();
@@ -187,7 +187,7 @@ void JointToCart::SetTargetX(float x)
  * @brief Sets the target Y position
  * @param y position in mm
  */
-void JointToCart::SetTargetY(float y)
+void JointToCart::SetY(float y)
 {
     data.set_target_y(y);
     data.clear_target_pos_variable();
@@ -197,7 +197,7 @@ void JointToCart::SetTargetY(float y)
  * @brief Sets the target Z position
  * @param z position in mm
  */
-void JointToCart::SetTargetZ(float z)
+void JointToCart::SetZ(float z)
 {
     data.set_target_z(z);
     data.clear_target_pos_variable();
@@ -207,7 +207,7 @@ void JointToCart::SetTargetZ(float z)
  * @brief Sets the target A orientation
  * @param a orientation in degrees
  */
-void JointToCart::SetTargetA(float a)
+void JointToCart::SetA(float a)
 {
     data.set_target_a(a);
     data.clear_target_pos_variable();
@@ -217,7 +217,7 @@ void JointToCart::SetTargetA(float a)
  * @brief Sets the target B orientation
  * @param b orientation in degrees
  */
-void JointToCart::SetTargetB(float b)
+void JointToCart::SetB(float b)
 {
     data.set_target_b(b);
     data.clear_target_pos_variable();
@@ -227,7 +227,7 @@ void JointToCart::SetTargetB(float b)
  * @brief Sets the target C orientation
  * @param c orientation in degrees
  */
-void JointToCart::SetTargetC(float c)
+void JointToCart::SetC(float c)
 {
     data.set_target_c(c);
     data.clear_target_pos_variable();

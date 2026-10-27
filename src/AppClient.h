@@ -628,10 +628,12 @@ public:
      * @param resultJoints 6 robot joints and 3 external joints. The result is
      * written here
      * @param resultState the result state is written here. 0 on success, other
-     * value on error return true on success
+     * value on error
+     * @param referenceFrame reference frame to convert from
+     * @return true on success
      */
     bool TranslateCartToJoint(double x, double y, double z, double a, double b, double c, const std::array<double, 9>& initialJoints,
-                              std::array<double, 9>& resultJoints, robotcontrolapp::KinematicState& resultState);
+                              std::array<double, 9>& resultJoints, robotcontrolapp::KinematicState& resultState, const std::string& referenceFrame = "");
 
     /**
      * @brief Translates joint positions to a cartesian position
@@ -642,12 +644,12 @@ public:
      * @param a result A orientation of the TCP in degrees
      * @param b result B orientation of the TCP in degrees
      * @param c result C orientation of the TCP in degrees
-     * @param resultState the result state is written here. 0 on success, other
-     * value on error
+     * @param resultState the result state is written here. 0 on success, other value on error
+     * @param referenceFrame reference frame to convert to
      * @return true on success
      */
     bool TranslateJointToCart(const std::array<double, 9>& joints, double& x, double& y, double& z, double& a, double& b, double& c,
-                              robotcontrolapp::KinematicState& resultState);
+                              robotcontrolapp::KinematicState& resultState, const std::string& referenceFrame = "");
 
     /**
      * @brief Translates joint positions to a cartesian position
@@ -656,9 +658,11 @@ public:
      * written here
      * @param resultState the result state is written here. 0 on success, other
      * value on error
+     * @param referenceFrame reference frame to convert to
      * @return true on success
      */
-    bool TranslateJointToCart(const std::array<double, 9>& joints, DataTypes::Matrix44& tcp, robotcontrolapp::KinematicState& resultState);
+    bool TranslateJointToCart(const std::array<double, 9>& joints, DataTypes::Matrix44& tcp, robotcontrolapp::KinematicState& resultState,
+                              const std::string& referenceFrame = "");
 
     // =========================================================================
     // File access
@@ -791,7 +795,7 @@ public:
 
     /**
      * @brief Adds or changes a user frame
-     * @param frame Uuser frame
+     * @param frame User frame
      * @return True if the frame was successfully set
      */
     bool SetUserFrame(const DataTypes::UserFrame& frame);
@@ -808,13 +812,13 @@ public:
     // =========================================================================
 
     /**
-     * @brief Gets the tool name
+     * @brief Gets the tool configuration file name
      * @return Active tool configuration file name or empty string if no tool is configured
      */
     std::string GetTool();
 
     /**
-     * @brief Sets the tool name
+     * @brief Loads a tool configuration from file
      * @param toolName Tool configuration file name or empty string to remove the tool
      * @return Active tool configuration file name or empty string if no tool is configured
      */

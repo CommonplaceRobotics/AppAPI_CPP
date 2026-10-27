@@ -7,12 +7,12 @@ TEST(App_Command_JointToCart, ConstructorDefault)
     EXPECT_TRUE(cmd.IsPositionConstant());
     EXPECT_FALSE(cmd.IsPositionFromVariable());
     EXPECT_STREQ("", cmd.GetVariable().c_str());
-    EXPECT_EQ(0, cmd.GetTargetX());
-    EXPECT_EQ(0, cmd.GetTargetY());
-    EXPECT_EQ(0, cmd.GetTargetZ());
-    EXPECT_EQ(0, cmd.GetTargetA());
-    EXPECT_EQ(0, cmd.GetTargetB());
-    EXPECT_EQ(0, cmd.GetTargetC());
+    EXPECT_EQ(0, cmd.GetX());
+    EXPECT_EQ(0, cmd.GetY());
+    EXPECT_EQ(0, cmd.GetZ());
+    EXPECT_EQ(0, cmd.GetA());
+    EXPECT_EQ(0, cmd.GetB());
+    EXPECT_EQ(0, cmd.GetC());
     EXPECT_EQ(0, cmd.GetE1());
     EXPECT_EQ(0, cmd.GetE2());
     EXPECT_EQ(0, cmd.GetE3());
@@ -51,12 +51,12 @@ TEST(App_Command_JointToCart, ConstructorConstPosition)
         EXPECT_TRUE(cmd.IsPositionConstant());
         EXPECT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetVariable().c_str());
-        EXPECT_EQ(pos[0], cmd.GetTargetX());
-        EXPECT_EQ(pos[1], cmd.GetTargetY());
-        EXPECT_EQ(pos[2], cmd.GetTargetZ());
-        EXPECT_EQ(pos[3], cmd.GetTargetA());
-        EXPECT_EQ(pos[4], cmd.GetTargetB());
-        EXPECT_EQ(pos[5], cmd.GetTargetC());
+        EXPECT_EQ(pos[0], cmd.GetX());
+        EXPECT_EQ(pos[1], cmd.GetY());
+        EXPECT_EQ(pos[2], cmd.GetZ());
+        EXPECT_EQ(pos[3], cmd.GetA());
+        EXPECT_EQ(pos[4], cmd.GetB());
+        EXPECT_EQ(pos[5], cmd.GetC());
         EXPECT_EQ(pos[6], cmd.GetE1());
         EXPECT_EQ(pos[7], cmd.GetE2());
         EXPECT_EQ(pos[8], cmd.GetE3());
@@ -93,12 +93,12 @@ TEST(App_Command_JointToCart, ConstructorVariablePosition)
         EXPECT_FALSE(cmd.IsPositionConstant());
         EXPECT_TRUE(cmd.IsPositionFromVariable());
         EXPECT_STREQ(varName.c_str(), cmd.GetVariable().c_str());
-        EXPECT_EQ(0, cmd.GetTargetX());
-        EXPECT_EQ(0, cmd.GetTargetY());
-        EXPECT_EQ(0, cmd.GetTargetZ());
-        EXPECT_EQ(0, cmd.GetTargetA());
-        EXPECT_EQ(0, cmd.GetTargetB());
-        EXPECT_EQ(0, cmd.GetTargetC());
+        EXPECT_EQ(0, cmd.GetX());
+        EXPECT_EQ(0, cmd.GetY());
+        EXPECT_EQ(0, cmd.GetZ());
+        EXPECT_EQ(0, cmd.GetA());
+        EXPECT_EQ(0, cmd.GetB());
+        EXPECT_EQ(0, cmd.GetC());
         EXPECT_EQ(0, cmd.GetE1());
         EXPECT_EQ(0, cmd.GetE2());
         EXPECT_EQ(0, cmd.GetE3());
@@ -156,7 +156,7 @@ TEST(App_Command_JointToCart, SetVariable)
     }
 }
 
-TEST(App_Command_JointToCart, SetTargetX)
+TEST(App_Command_JointToCart, SetX)
 {
     {
         const float val = 123.45;
@@ -164,10 +164,10 @@ TEST(App_Command_JointToCart, SetTargetX)
         App::RobotProgram::Command::JointToCart cmd;
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetX());
+        ASSERT_EQ(0, cmd.GetX());
 
-        cmd.SetTargetX(val);
-        EXPECT_EQ(val, cmd.GetTargetX());
+        cmd.SetX(val);
+        EXPECT_EQ(val, cmd.GetX());
         EXPECT_EQ(val, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -187,13 +187,13 @@ TEST(App_Command_JointToCart, SetTargetX)
         App::RobotProgram::Command::JointToCart cmd("Foo");
         ASSERT_FALSE(cmd.IsPositionConstant());
         ASSERT_TRUE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetX());
+        ASSERT_EQ(0, cmd.GetX());
 
-        cmd.SetTargetX(val);
+        cmd.SetX(val);
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetCmdParameters().joint_to_cart().target_pos_variable().c_str());
-        EXPECT_EQ(val, cmd.GetTargetX());
+        EXPECT_EQ(val, cmd.GetX());
         EXPECT_EQ(val, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -207,7 +207,7 @@ TEST(App_Command_JointToCart, SetTargetX)
     }
 }
 
-TEST(App_Command_JointToCart, SetTargetY)
+TEST(App_Command_JointToCart, SetY)
 {
     {
         const float val = 123.45;
@@ -215,10 +215,10 @@ TEST(App_Command_JointToCart, SetTargetY)
         App::RobotProgram::Command::JointToCart cmd;
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetY());
+        ASSERT_EQ(0, cmd.GetY());
 
-        cmd.SetTargetY(val);
-        EXPECT_EQ(val, cmd.GetTargetY());
+        cmd.SetY(val);
+        EXPECT_EQ(val, cmd.GetY());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(val, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -238,13 +238,13 @@ TEST(App_Command_JointToCart, SetTargetY)
         App::RobotProgram::Command::JointToCart cmd("Foo");
         ASSERT_FALSE(cmd.IsPositionConstant());
         ASSERT_TRUE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetY());
+        ASSERT_EQ(0, cmd.GetY());
 
-        cmd.SetTargetY(val);
+        cmd.SetY(val);
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetCmdParameters().joint_to_cart().target_pos_variable().c_str());
-        EXPECT_EQ(val, cmd.GetTargetY());
+        EXPECT_EQ(val, cmd.GetY());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(val, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -258,7 +258,7 @@ TEST(App_Command_JointToCart, SetTargetY)
     }
 }
 
-TEST(App_Command_JointToCart, SetTargetZ)
+TEST(App_Command_JointToCart, SetZ)
 {
     {
         const float val = 123.45;
@@ -266,10 +266,10 @@ TEST(App_Command_JointToCart, SetTargetZ)
         App::RobotProgram::Command::JointToCart cmd;
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetZ());
+        ASSERT_EQ(0, cmd.GetZ());
 
-        cmd.SetTargetZ(val);
-        EXPECT_EQ(val, cmd.GetTargetZ());
+        cmd.SetZ(val);
+        EXPECT_EQ(val, cmd.GetZ());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(val, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -289,13 +289,13 @@ TEST(App_Command_JointToCart, SetTargetZ)
         App::RobotProgram::Command::JointToCart cmd("Foo");
         ASSERT_FALSE(cmd.IsPositionConstant());
         ASSERT_TRUE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetZ());
+        ASSERT_EQ(0, cmd.GetZ());
 
-        cmd.SetTargetZ(val);
+        cmd.SetZ(val);
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetCmdParameters().joint_to_cart().target_pos_variable().c_str());
-        EXPECT_EQ(val, cmd.GetTargetZ());
+        EXPECT_EQ(val, cmd.GetZ());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(val, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -309,7 +309,7 @@ TEST(App_Command_JointToCart, SetTargetZ)
     }
 }
 
-TEST(App_Command_JointToCart, SetTargetA)
+TEST(App_Command_JointToCart, SetA)
 {
     {
         const float val = 123.45;
@@ -317,10 +317,10 @@ TEST(App_Command_JointToCart, SetTargetA)
         App::RobotProgram::Command::JointToCart cmd;
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetA());
+        ASSERT_EQ(0, cmd.GetA());
 
-        cmd.SetTargetA(val);
-        EXPECT_EQ(val, cmd.GetTargetA());
+        cmd.SetA(val);
+        EXPECT_EQ(val, cmd.GetA());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -340,13 +340,13 @@ TEST(App_Command_JointToCart, SetTargetA)
         App::RobotProgram::Command::JointToCart cmd("Foo");
         ASSERT_FALSE(cmd.IsPositionConstant());
         ASSERT_TRUE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetA());
+        ASSERT_EQ(0, cmd.GetA());
 
-        cmd.SetTargetA(val);
+        cmd.SetA(val);
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetCmdParameters().joint_to_cart().target_pos_variable().c_str());
-        EXPECT_EQ(val, cmd.GetTargetA());
+        EXPECT_EQ(val, cmd.GetA());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -360,7 +360,7 @@ TEST(App_Command_JointToCart, SetTargetA)
     }
 }
 
-TEST(App_Command_JointToCart, SetTargetB)
+TEST(App_Command_JointToCart, SetB)
 {
     {
         const float val = 123.45;
@@ -368,10 +368,10 @@ TEST(App_Command_JointToCart, SetTargetB)
         App::RobotProgram::Command::JointToCart cmd;
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetB());
+        ASSERT_EQ(0, cmd.GetB());
 
-        cmd.SetTargetB(val);
-        EXPECT_EQ(val, cmd.GetTargetB());
+        cmd.SetB(val);
+        EXPECT_EQ(val, cmd.GetB());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -391,13 +391,13 @@ TEST(App_Command_JointToCart, SetTargetB)
         App::RobotProgram::Command::JointToCart cmd("Foo");
         ASSERT_FALSE(cmd.IsPositionConstant());
         ASSERT_TRUE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetB());
+        ASSERT_EQ(0, cmd.GetB());
 
-        cmd.SetTargetB(val);
+        cmd.SetB(val);
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetCmdParameters().joint_to_cart().target_pos_variable().c_str());
-        EXPECT_EQ(val, cmd.GetTargetB());
+        EXPECT_EQ(val, cmd.GetB());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -411,7 +411,7 @@ TEST(App_Command_JointToCart, SetTargetB)
     }
 }
 
-TEST(App_Command_JointToCart, SetTargetC)
+TEST(App_Command_JointToCart, SetC)
 {
     {
         const float val = 123.45;
@@ -419,10 +419,10 @@ TEST(App_Command_JointToCart, SetTargetC)
         App::RobotProgram::Command::JointToCart cmd;
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetC());
+        ASSERT_EQ(0, cmd.GetC());
 
-        cmd.SetTargetC(val);
-        EXPECT_EQ(val, cmd.GetTargetC());
+        cmd.SetC(val);
+        EXPECT_EQ(val, cmd.GetC());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
@@ -441,13 +441,13 @@ TEST(App_Command_JointToCart, SetTargetC)
         App::RobotProgram::Command::JointToCart cmd("Foo");
         ASSERT_FALSE(cmd.IsPositionConstant());
         ASSERT_TRUE(cmd.IsPositionFromVariable());
-        ASSERT_EQ(0, cmd.GetTargetC());
+        ASSERT_EQ(0, cmd.GetC());
 
-        cmd.SetTargetC(val);
+        cmd.SetC(val);
         ASSERT_TRUE(cmd.IsPositionConstant());
         ASSERT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetCmdParameters().joint_to_cart().target_pos_variable().c_str());
-        EXPECT_EQ(val, cmd.GetTargetC());
+        EXPECT_EQ(val, cmd.GetC());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_x());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_y());
         EXPECT_EQ(0, cmd.GetCmdParameters().joint_to_cart().target_z());
