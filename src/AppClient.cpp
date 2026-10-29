@@ -2291,11 +2291,10 @@ std::optional<DataTypes::UserFrame> AppClient::GetUserFrame(const std::string& f
 }
 
 /**
- * @brief Adds or changes a user frame
- * @param frame Uuser frame
- * @return True if the frame was successfully set
+ * @brief Adds or changes a user frame. Throws on error.
+ * @param frame User frame
  */
-bool AppClient::SetUserFrame(const DataTypes::UserFrame& frame)
+void AppClient::SetUserFrame(const DataTypes::UserFrame& frame)
 {
     if (!IsConnected()) throw NotConnectedException();
 
@@ -2310,7 +2309,7 @@ bool AppClient::SetUserFrame(const DataTypes::UserFrame& frame)
         throw std::runtime_error("request SetUserFrame failed: " + status.error_message());
     }
 
-    return response.success();
+    if (!response.success()) throw std::runtime_error(response.message());
 }
 
 /**

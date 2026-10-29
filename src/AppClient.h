@@ -794,14 +794,13 @@ public:
     std::optional<DataTypes::UserFrame> GetUserFrame(const std::string& frameName);
 
     /**
-     * @brief Adds or changes a user frame
+     * @brief Adds or changes a user frame. Throws on error.
      * @param frame User frame
-     * @return True if the frame was successfully set
      */
-    bool SetUserFrame(const DataTypes::UserFrame& frame);
+    void SetUserFrame(const DataTypes::UserFrame& frame);
 
     /**
-     * @brief Removes a user frame
+     * @brief Removes a user frame. Throws on error.
      * @param frameName User frame name
      * @return True if a frame was removed
      */
