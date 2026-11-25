@@ -359,7 +359,9 @@ message Joint {
 // Position and orientation in platform space
 message PlatformPose
 {
+    // Position in mm
     Vector3 position = 1;
+    // Heading in degrees
     float heading = 2;
 }
 
@@ -369,8 +371,10 @@ message RobotState {
     Matrix44 tcp = 3;
     // Position and orientation of the mobile platform in platform space, if available
     optional PlatformPose platform_pose = 20;
-    // Joint angles/positions in degrees or mm
-    repeated Joint joints = 4; // 6 robot joints + 3 ext joints (at indices 6,7,8)
+    // Joint angles/positions in degrees or mm: 6 robot joints + 3 ext joints (at indices 6,7,8)
+    repeated Joint joints = 4;
+    // Gripper open/closed state: 1-3 gripper state values (0..100, where 0 means closed and 100 means open)
+    repeated float gripper_state = 25;
 
     // inputs, outputs and global signals
     repeated DIn DIns = 5;
@@ -1088,6 +1092,7 @@ message CmdSetGlobalSignalParameters
 
 message CmdGripperParameters
 {
+    //  1-3 gripper state values (0..100, where 0 means closed and 100 means open)
     repeated float target_states = 1;
 }
 

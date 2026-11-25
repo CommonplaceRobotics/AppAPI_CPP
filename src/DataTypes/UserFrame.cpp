@@ -55,6 +55,17 @@ UserFrame::UserFrame(const robotcontrolapp::UserFrame& grpc)
 }
 
 /**
+ * @brief Compares two UserFrame objects
+ * @param other object to compare to
+ * @return true if equal
+ */
+bool UserFrame::operator==(const UserFrame& other) const
+{
+    return Name == other.Name && PointAX == other.PointAX && PointAY == other.PointAY && PointAZ == other.PointAZ && PointBX == other.PointBX &&
+           PointBY == other.PointBY && PointBZ == other.PointBZ && PointCX == other.PointCX && PointCY == other.PointCY && PointCZ == other.PointCZ;
+}
+
+/**
  * @brief Converts the data to a GRPC object
  * @return GRPC user frame
  */

@@ -145,6 +145,11 @@ public:
     std::array<Joint, 9> joints;
 
     /**
+     * @brief Gripper states in percent (0..100). 0 means closed, 100 means open.
+     */
+    std::array<float, 3> gripperState;
+
+    /**
      * @brief 64 digital inputs
      */
     std::vector<bool> digitalInputs;

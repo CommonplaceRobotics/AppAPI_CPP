@@ -30,9 +30,14 @@ RobotState::RobotState(const robotcontrolapp::RobotState& state)
         platformHeading = state.platform_pose().heading();
     }
 
-    for (int i = 0; i < state.joints_size(); i++)
+    for (int i = 0; i < state.joints_size() && i < joints.size(); i++)
     {
         joints[i] = Joint(state.joints(i));
+    }
+
+    for (int i = 0; i < state.gripper_state_size() && i < gripperState.size(); i++)
+    {
+        gripperState[i] = state.gripper_state(i);
     }
 
     digitalInputs.resize(64);

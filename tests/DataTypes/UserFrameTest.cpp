@@ -127,6 +127,104 @@ TEST(App_UserFrame, ConstructorGRPC)
     }
 }
 
+TEST(App_UserFrame, OperatorEqual)
+{
+    const std::string name = "Foo";
+    const float ax = 1, bx = 2, cx = 3;
+    const float ay = 4, by = 5, cy = 6;
+    const float az = 7, bz = 8, cz = 9;
+    App::DataTypes::UserFrame frame(name, ax, ay, az, bx, by, bz, cx, cy, cz);
+
+    // Equal to self
+    EXPECT_TRUE(frame.operator==(frame));
+
+    // Equal to copy
+    App::DataTypes::UserFrame frame2 = frame;
+    EXPECT_TRUE(frame.operator==(frame2));
+
+    // Different name
+    frame2.Name = "Bar";
+    EXPECT_FALSE(frame.operator==(frame2));
+
+    // Different values
+    App::DataTypes::UserFrame frameAX = frame;
+    App::DataTypes::UserFrame frameAY = frame;
+    App::DataTypes::UserFrame frameAZ = frame;
+    App::DataTypes::UserFrame frameBX = frame;
+    App::DataTypes::UserFrame frameBY = frame;
+    App::DataTypes::UserFrame frameBZ = frame;
+    App::DataTypes::UserFrame frameCX = frame;
+    App::DataTypes::UserFrame frameCY = frame;
+    App::DataTypes::UserFrame frameCZ = frame;
+    frameAX.PointAX += 1;
+    frameAY.PointAY += 1;
+    frameAZ.PointAZ += 1;
+    frameBX.PointBX += 1;
+    frameBY.PointBY += 1;
+    frameBZ.PointBZ += 1;
+    frameCX.PointCX += 1;
+    frameCY.PointCY += 1;
+    frameCZ.PointCZ += 1;
+    EXPECT_FALSE(frame.operator==(frameAX));
+    EXPECT_FALSE(frame.operator==(frameAY));
+    EXPECT_FALSE(frame.operator==(frameAZ));
+    EXPECT_FALSE(frame.operator==(frameBX));
+    EXPECT_FALSE(frame.operator==(frameBY));
+    EXPECT_FALSE(frame.operator==(frameBZ));
+    EXPECT_FALSE(frame.operator==(frameCX));
+    EXPECT_FALSE(frame.operator==(frameCY));
+    EXPECT_FALSE(frame.operator==(frameCZ));
+}
+
+TEST(App_UserFrame, OperatorNotEqual)
+{
+    const std::string name = "Foo";
+    const float ax = 1, bx = 2, cx = 3;
+    const float ay = 4, by = 5, cy = 6;
+    const float az = 7, bz = 8, cz = 9;
+    App::DataTypes::UserFrame frame(name, ax, ay, az, bx, by, bz, cx, cy, cz);
+
+    // Equal to self
+    EXPECT_FALSE(frame.operator!=(frame));
+
+    // Equal to copy
+    App::DataTypes::UserFrame frame2 = frame;
+    EXPECT_FALSE(frame.operator!=(frame2));
+
+    // Different name
+    frame2.Name = "Bar";
+    EXPECT_TRUE(frame.operator!=(frame2));
+
+    // Different values
+    App::DataTypes::UserFrame frameAX = frame;
+    App::DataTypes::UserFrame frameAY = frame;
+    App::DataTypes::UserFrame frameAZ = frame;
+    App::DataTypes::UserFrame frameBX = frame;
+    App::DataTypes::UserFrame frameBY = frame;
+    App::DataTypes::UserFrame frameBZ = frame;
+    App::DataTypes::UserFrame frameCX = frame;
+    App::DataTypes::UserFrame frameCY = frame;
+    App::DataTypes::UserFrame frameCZ = frame;
+    frameAX.PointAX += 1;
+    frameAY.PointAY += 1;
+    frameAZ.PointAZ += 1;
+    frameBX.PointBX += 1;
+    frameBY.PointBY += 1;
+    frameBZ.PointBZ += 1;
+    frameCX.PointCX += 1;
+    frameCY.PointCY += 1;
+    frameCZ.PointCZ += 1;
+    EXPECT_TRUE(frame.operator!=(frameAX));
+    EXPECT_TRUE(frame.operator!=(frameAY));
+    EXPECT_TRUE(frame.operator!=(frameAZ));
+    EXPECT_TRUE(frame.operator!=(frameBX));
+    EXPECT_TRUE(frame.operator!=(frameBY));
+    EXPECT_TRUE(frame.operator!=(frameBZ));
+    EXPECT_TRUE(frame.operator!=(frameCX));
+    EXPECT_TRUE(frame.operator!=(frameCY));
+    EXPECT_TRUE(frame.operator!=(frameCZ));
+}
+
 TEST(App_UserFrame, ToGRPC)
 {
     const std::string name = "Foo";

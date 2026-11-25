@@ -114,6 +114,11 @@ TEST(App_RobotStateTest, ConstructorDefault)
     EXPECT_EQ(0, robotState.joints[7].id);
     EXPECT_EQ(0, robotState.joints[8].id);
 
+    ASSERT_EQ(3, robotState.gripperState.size());
+    ASSERT_EQ(0, robotState.gripperState[0]);
+    ASSERT_EQ(0, robotState.gripperState[1]);
+    ASSERT_EQ(0, robotState.gripperState[2]);
+
     ASSERT_EQ(64, robotState.digitalInputs.size());
     ASSERT_EQ(64, robotState.digitalOutputs.size());
     for (size_t i = 0; i < robotState.digitalInputs.size(); i++)
@@ -189,6 +194,10 @@ TEST(App_RobotStateTest, ConstructorGRPC)
         robotStateGrpc.set_current_all(1234.5f);
         robotStateGrpc.set_referencing_state(robotcontrolapp::ReferencingState::IS_REFERENCING);
 
+        robotStateGrpc.add_gripper_state(10);
+        robotStateGrpc.add_gripper_state(20);
+        robotStateGrpc.add_gripper_state(30);
+
         // Test
         App::DataTypes::RobotState robotState(robotStateGrpc);
 
@@ -213,6 +222,11 @@ TEST(App_RobotStateTest, ConstructorGRPC)
         EXPECT_EQ(7, robotState.joints[6].id);
         EXPECT_EQ(8, robotState.joints[7].id);
         EXPECT_EQ(9, robotState.joints[8].id);
+
+        ASSERT_EQ(3, robotState.gripperState.size());
+        ASSERT_EQ(10, robotState.gripperState[0]);
+        ASSERT_EQ(20, robotState.gripperState[1]);
+        ASSERT_EQ(30, robotState.gripperState[2]);
 
         ASSERT_EQ(64, robotState.digitalInputs.size());
         ASSERT_EQ(64, robotState.digitalOutputs.size());

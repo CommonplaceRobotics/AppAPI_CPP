@@ -67,6 +67,19 @@ public:
     UserFrame(const robotcontrolapp::UserFrame& grpc);
 
     /**
+     * @brief Compares two UserFrame objects
+     * @param other object to compare to
+     * @return true if equal
+     */
+    bool operator==(const UserFrame& other) const;
+    /**
+     * @brief Compares two UserFrame objects
+     * @param other object to compare to
+     * @return false if equal
+     */
+    bool operator!=(const UserFrame& other) const { return !operator==(other); }
+
+    /**
      * @brief Converts the data to a GRPC object
      * @return GRPC user frame
      */
