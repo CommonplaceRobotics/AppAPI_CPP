@@ -47,9 +47,10 @@ public:
      * @param velocity velocity in mm/s
      * @param acceleration acceleration in percent (0..100)
      * @param smoothing smoothing in percent (0..100)
+     * @param abortCondition abort condition, if true the motion is aborted and the next command is started
      */
     Linear(float x, float y, float z, float a, float b, float c, float e1, float e2, float e3, float velocity = VELOCITY_DEFAULT,
-           float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT);
+           float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT, const std::string& abortCondition = "false");
 
     /**
      * @brief Constructor
@@ -57,8 +58,10 @@ public:
      * @param velocity velocity in mm/s
      * @param acceleration acceleration in percent (0..100)
      * @param smoothing smoothing in percent (0..100)
+     * @param abortCondition abort condition, if true the motion is aborted and the next command is started
      */
-    Linear(const std::string& variableName, float velocity = VELOCITY_DEFAULT, float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT);
+    Linear(const std::string& variableName, float velocity = VELOCITY_DEFAULT, float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT,
+           const std::string& abortCondition = "false");
 
     /**
      * @brief Gets the command parameters for AddCommandRequest

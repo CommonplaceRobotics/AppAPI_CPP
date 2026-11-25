@@ -26,7 +26,7 @@ public:
 
     /**
      * @brief Constructor
-     * @param targetState gripper target state
+     * @param targetState gripper target state in percent (0..100)
      */
     Gripper(float targetState);
 

@@ -17,6 +17,7 @@ Linear::Linear()
     SetAcceleration(ACCELERATION_DEFAULT);
     SetSmoothing(SMOOTHING_DEFAULT);
     SetAbortCondition("false");
+    SetReferenceFrame("#base");
 }
 
 /**
@@ -33,8 +34,10 @@ Linear::Linear()
  * @param velocity velocity in mm/s
  * @param acceleration acceleration in percent (0..100)
  * @param smoothing smoothing in percent (0..100)
+ * @param abortCondition abort condition, if true the motion is aborted and the next command is started
  */
-Linear::Linear(float x, float y, float z, float a, float b, float c, float e1, float e2, float e3, float velocity, float acceleration, float smoothing)
+Linear::Linear(float x, float y, float z, float a, float b, float c, float e1, float e2, float e3, float velocity, float acceleration, float smoothing,
+               const std::string& abortCondition)
 {
     data.set_target_x(x);
     data.set_target_y(y);
@@ -49,7 +52,8 @@ Linear::Linear(float x, float y, float z, float a, float b, float c, float e1, f
     SetVelocity(velocity);
     SetAcceleration(acceleration);
     SetSmoothing(smoothing);
-    SetAbortCondition("false");
+    SetAbortCondition(abortCondition);
+    SetReferenceFrame("#base");
 }
 
 /**
@@ -58,15 +62,17 @@ Linear::Linear(float x, float y, float z, float a, float b, float c, float e1, f
  * @param velocity velocity in mm/s
  * @param acceleration acceleration in percent (0..100)
  * @param smoothing smoothing in percent (0..100)
+ * @param abortCondition abort condition, if true the motion is aborted and the next command is started
  */
-Linear::Linear(const std::string& variableName, float velocity, float acceleration, float smoothing)
+Linear::Linear(const std::string& variableName, float velocity, float acceleration, float smoothing, const std::string& abortCondition)
 {
     for (size_t i = 0; i < 3; i++) data.add_target_pos_ext_joints(0);
     data.set_target_pos_variable(variableName);
     SetVelocity(velocity);
     SetAcceleration(acceleration);
     SetSmoothing(smoothing);
-    SetAbortCondition("false");
+    SetAbortCondition(abortCondition);
+    SetReferenceFrame("#base");
 }
 
 /**

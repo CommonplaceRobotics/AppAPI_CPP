@@ -46,8 +46,9 @@ TEST(App_Command_Joint, ConstructorConstPosition)
         const float vel = 12.3;
         const float acc = 23.4;
         const float smooth = 34.5;
+        const std::string abortCondition = "DIn21";
 
-        App::RobotProgram::Command::Joint cmd(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6], pos[7], pos[8], vel, acc, smooth);
+        App::RobotProgram::Command::Joint cmd(pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], pos[6], pos[7], pos[8], vel, acc, smooth, abortCondition);
         EXPECT_TRUE(cmd.IsPositionConstant());
         EXPECT_FALSE(cmd.IsPositionFromVariable());
         EXPECT_STREQ("", cmd.GetVariable().c_str());
@@ -63,7 +64,7 @@ TEST(App_Command_Joint, ConstructorConstPosition)
         EXPECT_EQ(vel, cmd.GetVelocity());
         EXPECT_EQ(acc, cmd.GetAcceleration());
         EXPECT_EQ(smooth, cmd.GetSmoothing());
-        EXPECT_STREQ("false", cmd.GetAbortCondition().c_str());
+        EXPECT_STREQ(abortCondition.c_str(), cmd.GetAbortCondition().c_str());
 
         ASSERT_TRUE(cmd.GetCmdParameters().has_joint());
         EXPECT_FALSE(cmd.GetCmdParameters().joint().has_target_pos_variable());
@@ -80,7 +81,7 @@ TEST(App_Command_Joint, ConstructorConstPosition)
         EXPECT_EQ(vel, cmd.GetCmdParameters().joint().velocity_percent());
         EXPECT_EQ(acc, cmd.GetCmdParameters().joint().acceleration_percent());
         EXPECT_EQ(smooth, cmd.GetCmdParameters().joint().smoothing_percent());
-        EXPECT_STREQ("false", cmd.GetCmdParameters().joint().abort_condition().c_str());
+        EXPECT_STREQ(abortCondition.c_str(), cmd.GetCmdParameters().joint().abort_condition().c_str());
     }
 }
 
@@ -88,8 +89,12 @@ TEST(App_Command_Joint, ConstructorVariablePosition)
 {
     {
         const std::string varName = "";
+        const float vel = 12.3;
+        const float acc = 23.4;
+        const float smooth = 34.5;
+        const std::string abortCondition = "DIn21";
 
-        App::RobotProgram::Command::Joint cmd(varName);
+        App::RobotProgram::Command::Joint cmd(varName, vel, acc, smooth, abortCondition);
         EXPECT_FALSE(cmd.IsPositionConstant());
         EXPECT_TRUE(cmd.IsPositionFromVariable());
         EXPECT_STREQ(varName.c_str(), cmd.GetVariable().c_str());
@@ -102,10 +107,10 @@ TEST(App_Command_Joint, ConstructorVariablePosition)
         EXPECT_EQ(0, cmd.GetE1());
         EXPECT_EQ(0, cmd.GetE2());
         EXPECT_EQ(0, cmd.GetE3());
-        EXPECT_EQ(40, cmd.GetVelocity());
-        EXPECT_EQ(40, cmd.GetAcceleration());
-        EXPECT_EQ(0, cmd.GetSmoothing());
-        EXPECT_STREQ("false", cmd.GetAbortCondition().c_str());
+        EXPECT_EQ(vel, cmd.GetVelocity());
+        EXPECT_EQ(acc, cmd.GetAcceleration());
+        EXPECT_EQ(smooth, cmd.GetSmoothing());
+        EXPECT_STREQ(abortCondition.c_str(), cmd.GetAbortCondition().c_str());
 
         ASSERT_TRUE(cmd.GetCmdParameters().has_joint());
         ASSERT_TRUE(cmd.GetCmdParameters().joint().has_target_pos_variable());
@@ -120,10 +125,10 @@ TEST(App_Command_Joint, ConstructorVariablePosition)
         EXPECT_EQ(0, cmd.GetCmdParameters().joint().target_pos(6));
         EXPECT_EQ(0, cmd.GetCmdParameters().joint().target_pos(7));
         EXPECT_EQ(0, cmd.GetCmdParameters().joint().target_pos(8));
-        EXPECT_EQ(40, cmd.GetCmdParameters().joint().velocity_percent());
-        EXPECT_EQ(40, cmd.GetCmdParameters().joint().acceleration_percent());
-        EXPECT_EQ(0, cmd.GetCmdParameters().joint().smoothing_percent());
-        EXPECT_STREQ("false", cmd.GetCmdParameters().joint().abort_condition().c_str());
+        EXPECT_EQ(vel, cmd.GetCmdParameters().joint().velocity_percent());
+        EXPECT_EQ(acc, cmd.GetCmdParameters().joint().acceleration_percent());
+        EXPECT_EQ(smooth, cmd.GetCmdParameters().joint().smoothing_percent());
+        EXPECT_STREQ(abortCondition.c_str(), cmd.GetCmdParameters().joint().abort_condition().c_str());
     }
 }
 

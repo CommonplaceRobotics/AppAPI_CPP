@@ -47,9 +47,10 @@ public:
      * @param velocity velocity in percent (0..100)
      * @param acceleration acceleration in percent (0..100)
      * @param smoothing smoothing in percent (0..100)
+     * @param abortCondition abort condition, if true the motion is aborted and the next command is started
      */
     Joint(float a1, float a2, float a3, float a4, float a5, float a6, float e1, float e2, float e3, float velocity = VELOCITY_DEFAULT,
-          float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT);
+          float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT, const std::string& abortCondition = "false");
 
     /**
      * @brief Constructor
@@ -57,8 +58,10 @@ public:
      * @param velocity velocity in percent (0..100)
      * @param acceleration acceleration in percent (0..100)
      * @param smoothing smoothing in percent (0..100)
+     * @param abortCondition abort condition, if true the motion is aborted and the next command is started
      */
-    Joint(const std::string& variableName, float velocity = VELOCITY_DEFAULT, float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT);
+    Joint(const std::string& variableName, float velocity = VELOCITY_DEFAULT, float acceleration = ACCELERATION_DEFAULT, float smoothing = SMOOTHING_DEFAULT,
+          const std::string& abortCondition = "false");
 
     /**
      * @brief Gets the command parameters for AddCommandRequest

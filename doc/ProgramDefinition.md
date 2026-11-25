@@ -29,3 +29,48 @@ Currently the following commands are supported. You may include all of them usin
 * ```SetVelocity``` - Sets the speed of an external axis in velocity mode, e.g. for a conveyor.
 * ```SubProgram``` - Calls a subprogram from a file that is stored on the robot control.
 * ```Wait``` - Waits by duration or condition.
+
+## Example
+
+The following example (assuming a ReBeL 6DOF robot) shows how a simple program can be defined and run.
+
+```cpp
+// Connect app (use your derived app class)
+AppClient app("my_app_id", "localhost:5000");
+app.Connect();
+
+// Check whether we are connected
+if (!app.IsConnected()) return;
+
+// Set the motion program to not repeat
+app.SetMotionProgramSingle();
+
+// Clear any loaded motion program
+app.ClearMotionProgram();
+
+// Add some commands to the motion program
+app.AddMotionCommand(std::make_shared<App::RobotProgram::Command::SetDigitalOutput>(20, true)); // Set DOut21 true
+app.AddMotionCommand(std::make_shared<App::RobotProgram::Command::Joint>(0, 0, 0, 0, 0, 0, 0, 0, 0,100,100,0)); // Move joint
+app.AddMotionCommand(std::make_shared<App::RobotProgram::Command::Wait>(0.5)); // Wait 500 ms
+app.AddMotionCommand(std::make_shared<App::RobotProgram::Command::Joint>(10, 20,30,40,50,60,0,0,0)); // Move joint
+
+// Start the program
+app.StartMotionProgram();
+
+// Wait till the program is finished (note, this function also waits if Move-To is executed or the position interface is enabled)
+app.WaitMotionDone(std::chrono::seconds(30)));
+```
+
+Instead of sending each command separately you can also define commands in a list. This approach allows you to reuse the program.
+```cpp
+std::vector<std::shared_ptr<App::RobotProgram::Command::ICommand>> program;
+
+// Define the commands.
+program.push_back(std::make_shared<App::RobotProgram::Command::Joint>(0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 0));
+program.push_back(std::make_shared<App::RobotProgram::Command::Joint>(10, 20, 30, 40, 50, 60, 0, 0, 0));
+
+// Send the commands to the robot control. This clears the motion program, if loaded
+app.SetMotionProgram(program);
+
+app.StartMotionProgram();
+```

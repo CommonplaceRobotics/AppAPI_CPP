@@ -33,8 +33,10 @@ Joint::Joint()
  * @param velocity velocity in percent (0..100)
  * @param acceleration acceleration in percent (0..100)
  * @param smoothing smoothing in percent (0..100)
+ * @param abortCondition abort condition, if true the motion is aborted and the next command is started
  */
-Joint::Joint(float a1, float a2, float a3, float a4, float a5, float a6, float e1, float e2, float e3, float velocity, float acceleration, float smoothing)
+Joint::Joint(float a1, float a2, float a3, float a4, float a5, float a6, float e1, float e2, float e3, float velocity, float acceleration, float smoothing,
+             const std::string& abortCondition)
 {
     data.add_target_pos(a1);
     data.add_target_pos(a2);
@@ -49,7 +51,7 @@ Joint::Joint(float a1, float a2, float a3, float a4, float a5, float a6, float e
     SetVelocity(velocity);
     SetAcceleration(acceleration);
     SetSmoothing(smoothing);
-    SetAbortCondition("false");
+    SetAbortCondition(abortCondition);
 }
 
 /**
@@ -58,15 +60,16 @@ Joint::Joint(float a1, float a2, float a3, float a4, float a5, float a6, float e
  * @param velocity velocity in percent (0..100)
  * @param acceleration acceleration in percent (0..100)
  * @param smoothing smoothing in percent (0..100)
+ * @param abortCondition abort condition, if true the motion is aborted and the next command is started
  */
-Joint::Joint(const std::string& variableName, float velocity, float acceleration, float smoothing)
+Joint::Joint(const std::string& variableName, float velocity, float acceleration, float smoothing, const std::string& abortCondition)
 {
     for (size_t i = 0; i < 9; i++) data.add_target_pos(0);
     data.set_target_pos_variable(variableName);
     SetVelocity(velocity);
     SetAcceleration(acceleration);
     SetSmoothing(smoothing);
-    SetAbortCondition("false");
+    SetAbortCondition(abortCondition);
 }
 
 /**
