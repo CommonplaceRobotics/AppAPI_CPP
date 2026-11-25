@@ -572,7 +572,7 @@ public:
      * per cycle.
      * @return true if motion is done, false on timeout
      */
-    bool WaitMotionDone(std::chrono::steady_clock::duration timeout = std::chrono::hours(9999999),
+    bool WaitMotionDone(std::chrono::steady_clock::duration timeout = std::chrono::hours(99),
                         std::chrono::steady_clock::duration precision = std::chrono::milliseconds(20));
 
     /**

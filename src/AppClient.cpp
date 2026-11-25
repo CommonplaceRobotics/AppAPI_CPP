@@ -1631,11 +1631,12 @@ bool AppClient::IsAutomaticMotion()
 bool AppClient::WaitMotionDone(std::chrono::steady_clock::duration timeout, std::chrono::steady_clock::duration precision)
 {
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-    do {
+    do
+    {
         if (!IsAutomaticMotion()) return true;
         std::this_thread::sleep_for(precision);
     }
-    while (std::chrono::steady_clock::now() - startTime > timeout);
+    while (std::chrono::steady_clock::now() - startTime < timeout);
     return false;
 }
 
@@ -2170,6 +2171,7 @@ void AppClient::ClearMotionProgram()
  */
 void AppClient::AddMotionCommand(std::shared_ptr<RobotProgram::Command::ICommand> command)
 {
+    if (!command) throw std::invalid_argument("command must not be null");
     if (!IsConnected()) throw NotConnectedException();
 
     robotcontrolapp::AddCommandRequest request;
