@@ -142,12 +142,12 @@ public:
      * @brief Joint angles/positions in degrees, mm or user defined units. Indices
      * 0-5 are robot joints, 6-8 are external joints.
      */
-    std::array<Joint, 9> joints;
+    std::array<Joint, 9> joints = {};
 
     /**
      * @brief Gripper states in percent (0..100). 0 means closed, 100 means open.
      */
-    std::array<float, 3> gripperState;
+    std::array<float, 3> gripperState = {};
 
     /**
      * @brief 64 digital inputs
